@@ -337,7 +337,7 @@
       }
 
       const hg = $("input[name='hg']:checked").val().trim()
-      const oneOrZeroBased = $("input[name='one-or-zero-based-coords']:checked").val().trim()
+      const oneOrZeroBasedCoords = $("input[name='one-or-zero-based-coords']:checked").val().trim()
 
       const inputGenomeVersion = hg == "hg19 => 38" ? "37" : "38"
 
@@ -391,7 +391,7 @@
 
           // call SpliceAI-lookup API
           return $.getJSON(
-            "https://spliceailookup-api.broadinstitute.org/liftover/",
+            "https://spliceailookup-api.broadinstitute.org--/liftover/",
             {
               hg: hg,
               oneOrZeroBasedCoords: oneOrZeroBasedCoords,
@@ -407,7 +407,7 @@
       } else if(INTERVAL_RE.test(input)) {
         const interval = parseInterval(input)
         promise = $.getJSON(
-          "https://spliceailookup-api.broadinstitute.org/liftover/",
+          "https://spliceailookup-api.broadinstitute.org--/liftover/",
           {
             hg: hg,
             oneOrZeroBasedCoords: oneOrZeroBasedCoords,
@@ -420,7 +420,7 @@
       } else if(POSITION_RE.test(input)) {
         const position = parsePosition(input)
         promise = $.getJSON(
-          "https://spliceailookup-api.broadinstitute.org/liftover/",
+          "https://spliceailookup-api.broadinstitute.org--/liftover/",
           {
             hg: hg,
             oneOrZeroBasedCoords: oneOrZeroBasedCoords,
@@ -429,6 +429,11 @@
             pos: position.pos,
           }
         )
+      } else {
+          $("#error-box").text("Unable to parse input: " + input)
+          $("#error-box").show()
+	  $("#submit-button").removeClass(["loading", "disabled"]);
+	  return
       }
 
       promise.then(function(response) {
@@ -461,6 +466,7 @@
     })
 
     const inputFromUrl = $.urlParam('input')
+    /*
     const hgFromUrl = $.urlParam('hg')
     if (hgFromUrl) {
       $("#hg").val(hgFromUrl)
@@ -469,6 +475,7 @@
     if (oneOrZeroBasedCoordsFromUrl) {
       $("#oneOrZeroBasedCoords").val(oneOrZeroBasedCoordsFromUrl)
     }
+    */
     if (inputFromUrl) {
       $("#search-box").val(inputFromUrl)
       $("#submit-button").click()
