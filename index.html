@@ -1,1 +1,480 @@
-liftover.broadinstitute.org is under construction
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>LiftOver</title>
+  <link rel="shortcut icon" href="/favicon.ico">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" />
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S9Q0L7CED6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-S9Q0L7CED6');
+  </script>
+
+  <style>
+    body, .ui.form, label {
+      font-size: 11pt !important;
+    }
+    td {
+      padding: 5px 15px;
+    }
+    .upperBorder {
+      border-top: 1px solid black;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    li {
+      margin-top: 10px;
+    }
+    code {
+      background: #EEEEEE;
+      font-family: Consolas;
+      padding: 0px 6px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+<div class="ui stackable grid">
+  <div class="row">
+    <div class="one wide column"></div>
+    <div class="seven wide column">
+      <div style="padding:25px 0px">
+        <div style="padding-bottom: 10px">Lift over variants, positions, or intervals from one reference genome version to another.</div>
+        <a id="about-details-button" href="#" onclick="$('#about-details').show();$('#about-details-button').hide();">more info...</a>
+        <div id="about-details" style="display:none">
+          This web interface supports more input formats and requires fewer clicks than existing interfaces like
+          <a href="https://genome.ucsc.edu/cgi-bin/hgLiftOver" target="_blank">UCSC LiftOver</a> and
+          <a href="https://plants.ensembl.org/Oryza_sativa/Tools/AssemblyConverter" target="_blank">Ensembl Assembly Converter</a>.
+          Under the hood, it uses the UCSC liftOver <a href="http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64" target="_blank">command-line tool</a>.<br/>
+          <br />
+          Issues or feature requests can be submitted via <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">github</a>.<br />
+        </div>
+        <br />
+        <br />
+
+        <b>Input formats</b>:
+        <div id="input-formats-short">
+          <div style="padding: 10px 15px">
+            chr8:140300616 <br />
+            chr8:140300616 T>G <br />
+            NM_000552.4(VWF):c.3797C>A (p.Pro1266Gln) <br />
+            chr8:140300616-140300620 <br />
+          </div>
+          <a href="#" onclick="$('#input-formats-long').show();$('#input-formats-short').hide();">more formats...</a><br />
+          <br />
+        </div>
+        <div id="input-formats-long" style="display: none">
+          <ul>
+            <li><b>Positions:</b><br />chr8:140300616<br />chr8-140300616<br />chr8 &nbsp; 140300616<br /></li>
+            <li><b>Variants:</b><br />chr8:140300616 T>G<br />chr8-140300616-T-G<br />NM_000552.4(VWF):c.3797C>A (p.Pro1266Gln)</li>
+            <li><b>Intervals:</b><br />chr8:140300616-140300620<br />chr8 &nbsp; 140300616 &nbsp; 140300620</li>
+          </ul>
+        </div>
+        The "chr" prefix is optional, and separators can be <code>:</code>, <code>-</code>, <code>&gt;</code>, or space(s).
+      </div>
+      <br />
+
+      <div class="ui form" style="width:100%">
+        <div class="ui input" style="padding-bottom:30px; padding-right:8px; width:100%">
+          <input id="search-box" type="text" style="width: 100%; padding: 7px 10px" placeholder="Enter a position, variant, or interval">
+        </div>
+        <!-- div class="field" style="padding-bottom: 10px;">
+            <textarea id="search-box2" rows="1" style="width: 100%" placeholder="Enter variant..."></textarea>
+        </div -->
+        <div class="ui stackable grid">
+          <div class="row">
+            <div class="five wide column">
+              <div class="field" style="padding-right:10px">
+                <div style="white-space: nowrap; padding-bottom:10px;"><b>Lift over:</b></div>
+                <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
+                  <input type="radio" name="hg" value="hg19-to-hg38" checked /><label>hg19 => hg38</label>
+                </div>
+                <br/>
+                <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
+                  <input type="radio" name="hg" value="hg38-to-hg19" /><label>hg38 => hg19</label>
+                </div>
+              </div>
+            </div>
+            <div class="eight wide column">
+              <div class="field" style="padding-right:10px">
+                <div style="white-space: nowrap; padding-bottom:10px;">
+                  <b>Coordinates:</b>
+                  <a href="https://www.biostars.org/p/84686/" target="_blank">
+                    <i style="margin-left:20px" class="question circle outline icon" data-position="right center" data-content=""></i>
+                  </a>
+                </div>
+                <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
+                  <input type="radio" name="one-or-zero-based-coords" value="1" checked /><label>1-based (VCF, GFF, GTF, SAM, etc.)</label>
+                </div>
+                <br />
+                <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
+                  <input type="radio" name="one-or-zero-based-coords" value="0" /><label>0-based (BED, etc.)</label>
+                </div>
+              </div>
+            </div>
+            <div class="three wide column">
+              <button id="submit-button" class="ui primary button">Submit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="eight wide column"></div>
+  </div>
+  <div class="row">
+    <div class="one wide column"></div>
+    <div class="fifteen wide column">
+      <div>
+        <div id="error-box" style="color:darkred"></div>
+        <div id="response-box"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var VARIANT_RE = new RegExp(
+          "(chr)?([0-9XYMTt]{1,2})" +
+          "[-\\s:]+" +
+          "([0-9]{1,9})" +
+          "[-\\s:]+" +
+          "([ACGT]+)" +
+          "[-\\s:>]+" +
+          "([ACGT]+)",
+          'i'
+  )
+
+  var POSITION_RE = new RegExp(
+          "(chr)?([0-9XYMTt]{1,2})" +
+          "[-\\s:]+" +
+          "([0-9]{1,9})",
+          'i'
+  )
+
+  var INTERVAL_RE = new RegExp(
+          "(chr)?([0-9XYMTt]{1,2})" +
+          "[-\\s:]+" +
+          "([0-9]{1,9})" +
+          "[-\\s:]+" +
+          "([0-9]{1,9})",
+          'i'
+  )
+
+  var GRCH37_contigs = {
+    "1": "NC_000001.10",
+    "2": "NC_000002.11",
+    "3": "NC_000003.11",
+    "4": "NC_000004.11",
+    "5": "NC_000005.9",
+    "6": "NC_000006.11",
+    "7": "NC_000007.13",
+    "8": "NC_000008.10",
+    "9": "NC_000009.11",
+    "10": "NC_000010.10",
+    "11": "NC_000011.9",
+    "12": "NC_000012.11",
+    "13": "NC_000013.10",
+    "14": "NC_000014.8",
+    "15": "NC_000015.9",
+    "16": "NC_000016.9",
+    "17": "NC_000017.10",
+    "18": "NC_000018.9",
+    "19": "NC_000019.9",
+    "20": "NC_000020.10",
+    "21": "NC_000021.8",
+    "22": "NC_000022.10",
+    "X": "NC_000023.10",
+    "Y": "NC_000024.9",
+    "M":  "NC_012920.1",
+    "MT": "NC_012920.1",
+  }
+
+  var GRCH38_contigs = {
+    "1" : "NC_000001.11",
+    "2" : "NC_000002.12",
+    "3" : "NC_000003.12",
+    "4" : "NC_000004.12",
+    "5" : "NC_000005.10",
+    "6" : "NC_000006.12",
+    "7" : "NC_000007.14",
+    "8" : "NC_000008.11",
+    "9" : "NC_000009.12",
+    "10": "NC_000010.11",
+    "11": "NC_000011.10",
+    "12": "NC_000012.12",
+    "13": "NC_000013.11",
+    "14": "NC_000014.9",
+    "15": "NC_000015.10",
+    "16": "NC_000016.10",
+    "17": "NC_000017.11",
+    "18": "NC_000018.10",
+    "19": "NC_000019.10",
+    "20": "NC_000020.11",
+    "21": "NC_000021.9",
+    "22": "NC_000022.11",
+    "X" : "NC_000023.11",
+    "Y" : "NC_000024.10",
+    "M":  "NC_012920.1",
+    "MT": "NC_012920.1",
+  }
+
+  function parseInterval(input) {
+    const m = input.match(INTERVAL_RE)
+    if (m) {
+      const chrom = m[2].toUpperCase()
+      return {
+        chrom: chrom,
+        start: m[3],
+        end: m[4],
+      }
+    }
+
+    return null
+  }
+
+  function parsePosition(input) {
+    const m = input.match(POSITION_RE)
+    if (m) {
+      const chrom = m[2].toUpperCase()
+      return {
+        chrom: chrom,
+        pos: m[3],
+      }
+    }
+
+    return null
+  }
+
+
+  function parseVariantToHGVS(variant, genomeVersion) {
+    const m = variant.match(VARIANT_RE)
+    if (m) {
+      let chrom = m[2].toUpperCase()
+      if (genomeVersion == "37") {
+        chrom = GRCH37_contigs[chrom]
+      } else if(genomeVersion == "38") {
+        chrom = GRCH38_contigs[chrom]
+      } else {
+        throw "Invalid genomeVersion: " + genomeVersion
+      }
+
+      const pos = parseInt(m[3])
+      const ref = m[4]
+      const alt = m[5]
+
+      if (ref.length == alt.length) {
+        variant = chrom + ":g." + pos + ref + ">" + alt
+      } else if (ref.length > alt.length) {
+        //deletion (https://varnomen.hgvs.org/recommendations/DNA/variant/deletion/)
+        variant = chrom + ":g." + (pos + 1) + "_" + (pos + ref.length - alt.length) + "del"
+      } else if (ref.length < alt.length) {
+        //insertion (https://varnomen.hgvs.org/recommendations/DNA/variant/insertion/)
+        variant = chrom + ":g." + pos + "_" + (pos + 1) + "ins" + alt.slice(1)
+      }
+
+      console.log("Parsed variant", variant)
+    }
+
+    return variant
+  }
+
+  function getUCSCBrowserUrl(genomeVersion, chrom, pos) {
+
+    genomeVersion = genomeVersion.replace('37', '19')
+    chrom = chrom.toUpperCase().replace('CHR', '')
+    return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg" + genomeVersion + "&position=chr" + chrom + ":" + pos
+  }
+
+  function generateResultsTable(response) {
+    console.log("Processing result:", response)
+
+    try {
+      response["url"] = getUCSCBrowserUrl(response.genome_version, response.chrom, response.pos)
+    } catch(e) {
+      response["url"] = "#"
+    }
+
+    return "<table>" +
+      "<tr>" +
+      "<td><b>input</b></td>" +
+      "<td><b>output</b></td>" +
+      "</tr>" +
+      "<tr>" +
+      "<td><a href='"+response.url+"' target='_blank'>"+response.input+"</a></td>" +
+      "<td><a href='"+response.url+"' target='_blank'>"+response.output+"</a></td>" +
+    "</table>"
+  }
+
+  $.urlParam = function (name) {
+    const results = new RegExp('[\?&#]?' + name + '=([^&#]*)').exec(window.location.hash);
+    return (results !== null) ? decodeURIComponent(results[1]) || 0 : false;
+  }
+
+  $(document).ready(function() {
+    $('.ui.radio.checkbox').checkbox()
+    $('.question').popup()
+    $("#search-box").focus()
+
+    $("#search-box").keydown(function (event) {
+      if ((event.keyCode || event.which) == 13) {
+        $("#submit-button").click()
+      }
+    });
+
+    $("#submit-button").click(function() {
+      const input = $("#search-box").val().trim()
+      if (!input) {
+        return
+      }
+
+      const hg = $("input[name='hg']:checked").val().trim()
+      const oneOrZeroBased = $("input[name='one-or-zero-based-coords']:checked").val().trim()
+
+      const inputGenomeVersion = hg == "hg19 => 38" ? "37" : "38"
+
+      $("#error-box").hide()
+      $("#response-box").hide()
+
+      $("#submit-button").addClass(["loading", "disabled"])
+
+      let promise;
+      if (VARIANT_RE.test(input)) {
+        const variantHgvs = parseVariantToHGVS(input, inputGenomeVersion)
+
+        let ensemblApiUrlPrefix = ""
+        if (inputGenomeVersion == "37") {
+          ensemblApiUrlPrefix = "grch37."
+        }
+
+        promise = $.getJSON(
+                "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/hgvs/" + variantHgvs + "?content-type=application/json&vcf_string=1"
+        ).catch(function(error) {
+          let errorText = error.responseText
+          try {
+            errorText = JSON.parse(errorText).error
+          } catch(e) {
+            console.warn(e)
+          }
+
+          const refAlleleError = errorText.match(new RegExp("[(]([ACGTRYSWKMBDHVN]+)[)] does not match reference allele given by HGVS notation"))
+          if (refAlleleError) {
+            errorText = variant + " has unexpected reference allele. The hg" + inputGenomeVersion + " reference allele should be: " + refAlleleError[1]
+          }
+
+          errorText = "Ensembl API error: " + errorText
+          console.warn(errorText)
+          throw { responseText: errorText }
+        }).then(function(response) {
+          console.log("Esnembl API response", response)
+          if (!response || !response[0]) {
+            throw { responseText: "Unable to parse Ensembl API repsonse: " + response }
+          }
+
+          const vcfString = (response[0].vcf_string || "---").split("-")
+          const chrom = vcfString[0]
+          const pos = vcfString[1]
+          const ref = vcfString[2]
+          const alt = vcfString[3]
+          const mostSevereConsequence = (response[0].most_severe_consequence || "").replace(/_/g, " ")
+
+          console.log("chrom:", chrom, "pos:", pos, "ref:", ref, "alt:", alt)
+          console.log("mostSevereConsequence:", mostSevereConsequence)
+
+          // call SpliceAI-lookup API
+          return $.getJSON(
+            "https://spliceailookup-api.broadinstitute.org/liftover/",
+            {
+              hg: hg,
+              oneOrZeroBasedCoords: oneOrZeroBasedCoords,
+              format: 'variant',
+              chrom: chrom,
+              pos: pos,
+              ref: ref,
+              alt: alt,
+              mostSevereConsequence: mostSevereConsequence,
+            }
+          )
+        })
+      } else if(INTERVAL_RE.test(input)) {
+        const interval = parseInterval(input)
+        promise = $.getJSON(
+          "https://spliceailookup-api.broadinstitute.org/liftover/",
+          {
+            hg: hg,
+            oneOrZeroBasedCoords: oneOrZeroBasedCoords,
+            format: 'interval',
+            chrom: interval.chrom,
+            start: interval.start,
+            end: interval.end,
+          }
+        )
+      } else if(POSITION_RE.test(input)) {
+        const position = parsePosition(input)
+        promise = $.getJSON(
+          "https://spliceailookup-api.broadinstitute.org/liftover/",
+          {
+            hg: hg,
+            oneOrZeroBasedCoords: oneOrZeroBasedCoords,
+            format: 'position',
+            chrom: position.chrom,
+            pos: position.pos,
+          }
+        )
+      }
+
+      promise.then(function(response) {
+        $("#error-box").hide()
+        $("#response-box").html(generateResultsTable(response))
+        $("#response-box").show()
+
+        // set url
+        window.location.hash = "#" + $.param({input: input, hg: hg, oneOrZeroBasedCoords: oneOrZeroBasedCoords})
+
+      }).catch(function(error) {
+        $("#response-box").hide()
+        let errorText = error.responseText
+        try {
+          errorText = JSON.parse(errorText).error
+        } catch(e) {
+        }
+
+        if (!errorText) {
+          errorText = "ERROR: An unknown error occurred."
+        } else {
+          console.warn(errorText)
+        }
+        $("#error-box").html(errorText)
+        $("#error-box").show()
+      }).always(function() {
+        $("#submit-button").removeClass(["loading", "disabled"]);
+        $('.question').popup()
+      })
+    })
+
+    const inputFromUrl = $.urlParam('input')
+    const hgFromUrl = $.urlParam('hg')
+    if (hgFromUrl) {
+      $("#hg").val(hgFromUrl)
+    }
+    const oneOrZeroBasedCoordsFromUrl = $.urlParam('oneOrZeroBasedCoords')
+    if (oneOrZeroBasedCoordsFromUrl) {
+      $("#oneOrZeroBasedCoords").val(oneOrZeroBasedCoordsFromUrl)
+    }
+    if (inputFromUrl) {
+      $("#search-box").val(inputFromUrl)
+      $("#submit-button").click()
+    }
+  })
+
+</script>
+</body>
+</html>
