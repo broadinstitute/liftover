@@ -329,17 +329,24 @@
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_start, response.output_end)
     }
 
+    let output_strand_info = ""
+    if (respose.output_strand == "-") {
+      output_strand_info = "(negative strand)"
+    }
+
     return "<style>td { padding-left: 0px; padding-bottom: 20px; }</style>" +
      "<table>" +
       "<tr>" +
         "<td><b>" + input_genome + ":</b></td>" +
-        "<td><b></b></td>" +
+        "<td></td>" +
         "<td><a href='"+input_url+"' target='_blank'>"+input_string+"</a></td>" +
+        "<td></td>" +
       "</tr>" +
       "<tr>" +
         "<td><b>" + output_genome + ":</b></td>" +
-        "<td> </td>" +
+        "<td></td>" +
         "<td><a href='"+output_url+"' target='_blank'>"+output_string+"</a></td>" +
+        "<td><b>" + output_strand_info + ":</b></td>" +
       "</tr>" +
     "</table>"
   }
