@@ -54,7 +54,7 @@
           This web interface supports more input formats and requires fewer clicks than existing interfaces like
           <a href="https://genome.ucsc.edu/cgi-bin/hgLiftOver" target="_blank">UCSC LiftOver</a> and
           <a href="https://plants.ensembl.org/Oryza_sativa/Tools/AssemblyConverter" target="_blank">Ensembl Assembly Converter</a>.
-          Under the hood, it uses the UCSC liftOver <a href="http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64" target="_blank">command-line tool</a>.<br/>
+          Under the hood, it uses the <a href="http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64" target="_blank">UCSC liftOver command-line tool</a>.<br/>
           <br />
           Issues or feature requests can be submitted via <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">github</a>.<br />
         </div>
@@ -92,18 +92,18 @@
         </div -->
         <div class="ui stackable grid">
           <div class="row">
-            <div class="five wide column">
+            <div class="thirteen wide column">
               <div class="field" style="padding-right:10px">
-                <div style="white-space: nowrap; padding-bottom:10px;"><b>Lift over:</b></div>
-                <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
+                <!-- <div style="white-space: nowrap; display: inline-block; padding-bottom:10px;"><b>Lift over:</b></span> -->
+                <div class="ui radio checkbox" style="display: inline-block; padding-right:50px; padding-bottom:15px">
                   <input type="radio" name="hg" value="hg19-to-hg38" checked /><label>hg19 => hg38</label>
                 </div>
-                <br/>
-                <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
+                <div class="ui radio checkbox" style="display: inline-block; padding-bottom:10px">
                   <input type="radio" name="hg" value="hg38-to-hg19" /><label>hg38 => hg19</label>
                 </div>
               </div>
             </div>
+            <!--
             <div class="eight wide column">
               <div class="field" style="padding-right:10px">
                 <div style="white-space: nowrap; padding-bottom:10px;">
@@ -121,6 +121,7 @@
                 </div>
               </div>
             </div>
+            -->
             <div class="three wide column">
               <button id="submit-button" class="ui primary button">Submit</button>
             </div>
@@ -142,7 +143,7 @@
 </div>
 
 <script>
-  var VARIANT_RE = new RegExp(
+  const VARIANT_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
           "[-\\s:]+" +
           "([0-9]{1,9})" +
@@ -153,14 +154,14 @@
           'i'
   )
 
-  var POSITION_RE = new RegExp(
+  const POSITION_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
           "[-\\s:]+" +
           "([0-9]{1,9})",
           'i'
   )
 
-  var INTERVAL_RE = new RegExp(
+  const INTERVAL_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
           "[-\\s:]+" +
           "([0-9]{1,9})" +
@@ -169,7 +170,7 @@
           'i'
   )
 
-  var GRCH37_contigs = {
+  const GRCH37_contigs = {
     "1": "NC_000001.10",
     "2": "NC_000002.11",
     "3": "NC_000003.11",
@@ -198,7 +199,7 @@
     "MT": "NC_012920.1",
   }
 
-  var GRCH38_contigs = {
+  const GRCH38_contigs = {
     "1" : "NC_000001.11",
     "2" : "NC_000002.12",
     "3" : "NC_000003.12",
@@ -226,6 +227,9 @@
     "M":  "NC_012920.1",
     "MT": "NC_012920.1",
   }
+
+  //const LIFTOVER_API_URL = "https://spliceailookup-api.broadinstitute.org/liftover/"
+  const LIFTOVER_API_URL = "http://localhost:8080/liftover/"
 
   function parseInterval(input) {
     const m = input.match(INTERVAL_RE)
@@ -287,30 +291,50 @@
     return variant
   }
 
-  function getUCSCBrowserUrl(genomeVersion, chrom, pos) {
+  function getUCSCBrowserUrl(genomeVersion, chrom, start, end=null) {
 
     genomeVersion = genomeVersion.replace('37', '19')
     chrom = chrom.toUpperCase().replace('CHR', '')
-    return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg" + genomeVersion + "&position=chr" + chrom + ":" + pos
+    return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg" + genomeVersion + "&position=chr" + chrom + ":" + start + (end? "-" + end : "")
   }
 
   function generateResultsTable(response) {
     console.log("Processing result:", response)
 
-    try {
-      response["url"] = getUCSCBrowserUrl(response.genome_version, response.chrom, response.pos)
-    } catch(e) {
-      response["url"] = "#"
+    hg_split = response.hg.split("-to-")
+    input_genome = hg_split[0]
+    output_genome = hg_split[1]
+
+    let input_string, output_string, input_url, output_url
+    if (response.format == "variant") {
+      input_string = response.chrom + ":" + response.pos + " " + response.ref + ">" + response.alt
+      output_string = response.output_chrom + ":" + response.output_pos + " " + response.output_ref + ">" + response.output_alt
+      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, response.pos)
+      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_pos)
+    } else if (response.format == "position") {
+      input_string = response.chrom + ":" + response.pos
+      output_string = response.output_chrom + ":" + response.output_pos
+      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, response.pos)
+      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_pos)
+    } else if (response.format == "interval") {
+      input_string = response.chrom + ":" + response.start + "-" + response.end
+      output_string = response.output_chrom + ":" + response.output_start + "-" + response.output_end
+      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, response.start, response.end)
+      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_start, response.output_end)
     }
 
-    return "<table>" +
+    return "<style>td { padding-left: 0px; padding-bottom: 20px; }</style>" +
+     "<table>" +
       "<tr>" +
-      "<td><b>input</b></td>" +
-      "<td><b>output</b></td>" +
+        "<td><b>" + input_genome + ":</b></td>" +
+        "<td><b></b></td>" +
+        "<td><a href='"+input_url+"' target='_blank'>"+input_string+"</a></td>" +
       "</tr>" +
       "<tr>" +
-      "<td><a href='"+response.url+"' target='_blank'>"+response.input+"</a></td>" +
-      "<td><a href='"+response.url+"' target='_blank'>"+response.output+"</a></td>" +
+        "<td><b>" + output_genome + ":</b></td>" +
+        "<td> </td>" +
+        "<td><a href='"+output_url+"' target='_blank'>"+output_string+"</a></td>" +
+      "</tr>" +
     "</table>"
   }
 
@@ -337,7 +361,7 @@
       }
 
       const hg = $("input[name='hg']:checked").val().trim()
-      const oneOrZeroBasedCoords = $("input[name='one-or-zero-based-coords']:checked").val().trim()
+      //const oneOrZeroBasedCoords = $("input[name='one-or-zero-based-coords']:checked").val().trim()
 
       const inputGenomeVersion = hg == "hg19 => 38" ? "37" : "38"
 
@@ -347,7 +371,7 @@
       $("#submit-button").addClass(["loading", "disabled"])
 
       let promise;
-      if (VARIANT_RE.test(input)) {
+      if (VARIANT_RE.test(input) || (!INTERVAL_RE.test(input) && !POSITION_RE.test(input))) {
         const variantHgvs = parseVariantToHGVS(input, inputGenomeVersion)
 
         let ensemblApiUrlPrefix = ""
@@ -356,7 +380,7 @@
         }
 
         promise = $.getJSON(
-                "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/hgvs/" + variantHgvs + "?content-type=application/json&vcf_string=1"
+          "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/hgvs/" + variantHgvs + "?content-type=application/json&vcf_string=1"
         ).catch(function(error) {
           let errorText = error.responseText
           try {
@@ -391,10 +415,10 @@
 
           // call SpliceAI-lookup API
           return $.getJSON(
-            "https://spliceailookup-api.broadinstitute.org--/liftover/",
+            LIFTOVER_API_URL,
             {
               hg: hg,
-              oneOrZeroBasedCoords: oneOrZeroBasedCoords,
+              //oneOrZeroBasedCoords: oneOrZeroBasedCoords,
               format: 'variant',
               chrom: chrom,
               pos: pos,
@@ -407,10 +431,10 @@
       } else if(INTERVAL_RE.test(input)) {
         const interval = parseInterval(input)
         promise = $.getJSON(
-          "https://spliceailookup-api.broadinstitute.org--/liftover/",
+          LIFTOVER_API_URL,
           {
             hg: hg,
-            oneOrZeroBasedCoords: oneOrZeroBasedCoords,
+            //oneOrZeroBasedCoords: oneOrZeroBasedCoords,
             format: 'interval',
             chrom: interval.chrom,
             start: interval.start,
@@ -420,20 +444,20 @@
       } else if(POSITION_RE.test(input)) {
         const position = parsePosition(input)
         promise = $.getJSON(
-          "https://spliceailookup-api.broadinstitute.org--/liftover/",
+          LIFTOVER_API_URL,
           {
             hg: hg,
-            oneOrZeroBasedCoords: oneOrZeroBasedCoords,
+            //oneOrZeroBasedCoords: oneOrZeroBasedCoords,
             format: 'position',
             chrom: position.chrom,
             pos: position.pos,
           }
         )
       } else {
-          $("#error-box").text("Unable to parse input: " + input)
-          $("#error-box").show()
-	  $("#submit-button").removeClass(["loading", "disabled"]);
-	  return
+        $("#error-box").text("Unable to parse input: " + input)
+        $("#error-box").show()
+        $("#submit-button").removeClass(["loading", "disabled"]);
+	    return
       }
 
       promise.then(function(response) {
@@ -442,7 +466,7 @@
         $("#response-box").show()
 
         // set url
-        window.location.hash = "#" + $.param({input: input, hg: hg, oneOrZeroBasedCoords: oneOrZeroBasedCoords})
+        window.location.hash = "#" + $.param({input: input, hg: hg}) //oneOrZeroBasedCoords: oneOrZeroBasedCoords
 
       }).catch(function(error) {
         $("#response-box").hide()
