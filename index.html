@@ -293,8 +293,12 @@
 
   function getUCSCBrowserUrl(genomeVersion, chrom, start, end=null) {
 
-    genomeVersion = genomeVersion.replace('37', '19')
+    genomeVersion = genomeVersion.replace('37', '19').replace("hg", "")
     chrom = chrom.toUpperCase().replace('CHR', '')
+    if (!end) {
+      start = parseInt(start) - 3
+      end = start + 3
+    }
     return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg" + genomeVersion + "&position=chr" + chrom + ":" + start + (end? "-" + end : "")
   }
 
