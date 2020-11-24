@@ -312,17 +312,6 @@
     input_genome = hg_split[0]
     output_genome = hg_split[1]
 
-    if (!ref_length) {
-      ref_length = 1
-    }
-
-    if (!end) {
-      // show window with 2 bases to the left and right of the given position
-      start = parseInt(start)
-      end = start + ref_length + 2
-      start = start - 1
-    }
-
     const ucsc_browser_window_size = 2; //window size (in base pairs) around variant or positions
     let input_string, output_string, input_url, output_url
     if (response.format == "variant") {
