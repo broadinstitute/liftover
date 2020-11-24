@@ -291,17 +291,18 @@
     return variant
   }
 
-  function getUCSCBrowserUrl(genomeVersion, chrom, start, end=null) {
-
+  function getUCSCBrowserUrl(genomeVersion, chrom, start, end) {
+    /**
+     * Returns the UCSC genome browser url.
+     *
+     * genomeVersion: "hg38" or "hg19" or "hg37"
+     * chrom: "chrX" or "X"
+     * start: start coord (0-based)
+     * end: end coord (1-based)
+     */
     genomeVersion = genomeVersion.replace('37', '19').replace("hg", "")
     chrom = chrom.toUpperCase().replace('CHR', '')
-    if (!end) {
-      // show window with 2 bases to the left and right of the given position
-      start = parseInt(start)
-      end = start + 3
-      start = start - 1
-    }
-    return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg" + genomeVersion + "&position=chr" + chrom + ":" + start + (end? "-" + end : "")
+    return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg"+genomeVersion+"&position=chr"+chrom+":"+start+"-"+end
   }
 
   function generateResultsTable(response) {
@@ -311,17 +312,29 @@
     input_genome = hg_split[0]
     output_genome = hg_split[1]
 
+    if (!ref_length) {
+      ref_length = 1
+    }
+
+    if (!end) {
+      // show window with 2 bases to the left and right of the given position
+      start = parseInt(start)
+      end = start + ref_length + 2
+      start = start - 1
+    }
+
+    const ucsc_browser_window_size = 2; //window size (in base pairs) around variant or positions
     let input_string, output_string, input_url, output_url
     if (response.format == "variant") {
       input_string = response.chrom + ":" + response.pos + " " + response.ref + ">" + response.alt
       output_string = response.output_chrom + ":" + response.output_pos + " " + response.output_ref + ">" + response.output_alt
-      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, response.pos)
-      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_pos)
+      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size + 1, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size)
+      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size + 1, parseInt(response.output_pos) + response.output_ref.length + ucsc_browser_window_size)
     } else if (response.format == "position") {
       input_string = response.chrom + ":" + response.pos
       output_string = response.output_chrom + ":" + response.output_pos
-      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, response.pos)
-      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_pos)
+      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size + 1, parseInt(response.pos) + ucsc_browser_window_size)
+      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size + 1, parseInt(response.output_pos) + ucsc_browser_window_size)
     } else if (response.format == "interval") {
       input_string = response.chrom + ":" + response.start + "-" + response.end
       output_string = response.output_chrom + ":" + response.output_start + "-" + response.output_end
