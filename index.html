@@ -296,8 +296,10 @@
     genomeVersion = genomeVersion.replace('37', '19').replace("hg", "")
     chrom = chrom.toUpperCase().replace('CHR', '')
     if (!end) {
-      start = parseInt(start) - 3
+      // show window with 2 bases to the left and right of the given position
+      start = parseInt(start)
       end = start + 3
+      start = start - 1
     }
     return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg" + genomeVersion + "&position=chr" + chrom + ":" + start + (end? "-" + end : "")
   }
