@@ -378,7 +378,15 @@
       const hg = $("input[name='hg']:checked").val().trim()
       //const oneOrZeroBasedCoords = $("input[name='one-or-zero-based-coords']:checked").val().trim()
 
-      const inputGenomeVersion = hg == "hg19 => 38" ? "37" : "38"
+      let inputGenomeVersion
+      if (hg == "hg19-to-hg38") {
+        inputGenomeVersion = "37"
+      } else if (hg == "hg38-to-hg19") {
+        inputGenomeVersion = "38"
+      } else {
+        console.error("Unexpected 'hg' value: " + hg)
+        return
+      }
 
       $("#error-box").hide()
       $("#response-box").hide()
