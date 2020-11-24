@@ -317,8 +317,8 @@
     if (response.format == "variant") {
       input_string = response.chrom + ":" + response.pos + " " + response.ref + ">" + response.alt
       output_string = response.output_chrom + ":" + response.output_pos + " " + response.output_ref + ">" + response.output_alt
-      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size + 1, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size)
-      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size + 1, parseInt(response.output_pos) + response.output_ref.length + ucsc_browser_window_size)
+      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size - 1)
+      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size, parseInt(response.output_pos) + response.output_ref.length + ucsc_browser_window_size - 1)
     } else if (response.format == "position") {
       input_string = response.chrom + ":" + response.pos
       output_string = response.output_chrom + ":" + response.output_pos
