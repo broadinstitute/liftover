@@ -317,8 +317,8 @@
     if (response.format == "variant") {
       input_string = response.chrom + ":" + response.pos + " " + response.ref + ">" + response.alt
       output_string = response.output_chrom + ":" + response.output_pos + " " + response.output_ref + ">" + response.output_alt
-      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size - 1)
-      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size, parseInt(response.output_pos) + response.output_ref.length + ucsc_browser_window_size - 1)
+      input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size)
+      output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size, parseInt(response.output_pos) + response.output_ref.length + ucsc_browser_window_size)
     } else if (response.format == "position") {
       input_string = response.chrom + ":" + response.pos
       output_string = response.output_chrom + ":" + response.output_pos
@@ -331,9 +331,11 @@
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_start, response.output_end)
     }
 
-    let output_strand_info = ""
+    let output_strand_info
     if (response.output_strand == "-") {
       output_strand_info = "(negative strand)"
+    } else {
+      output_strand_info = "(same strand)"
     }
 
     return "<style>td { padding-left: 0px; padding-bottom: 20px; }</style>" +
@@ -341,14 +343,20 @@
       "<tr>" +
         "<td><b>" + input_genome + ":</b></td>" +
         "<td></td>" +
-        "<td><a href='"+input_url+"' target='_blank'>"+input_string+"</a></td>" +
+        "<td><a href='" + input_url + "' target='_blank'>" + input_string + "</a></td>" +
         "<td></td>" +
+            (response.mostSevereConsequence && response.geneSymbol && response.geneId?
+            "<td><b>" + response.mostSevereConsequence + "</b></td>" +
+            "<td> in gene <b>" + response.geneSymbol + "</b> &nbsp; (" + response.geneId + ")</td>" :
+            "<td></td><td></td>") +
       "</tr>" +
       "<tr>" +
         "<td><b>" + output_genome + ":</b></td>" +
         "<td></td>" +
-        "<td><a href='"+output_url+"' target='_blank'>"+output_string+"</a></td>" +
+        "<td><a href='" + output_url + "' target='_blank'>" + output_string + "</a></td>" +
         "<td>" + output_strand_info + "</td>" +
+        "<td></td>" +
+        "<td></td>" +
       "</tr>" +
     "</table>"
   }
@@ -432,6 +440,13 @@
           const ref = vcfString[2]
           const alt = vcfString[3]
           const mostSevereConsequence = (response[0].most_severe_consequence || "").replace(/_/g, " ")
+          const filteredTranscriptConsequences = response[0].transcript_consequences.filter(t => t.consequence_terms && t.consequence_terms.includes(response[0].most_severe_consequence))
+
+          let geneSymbol = "", geneId = ""
+          if (filteredTranscriptConsequences.length > 0) {
+            geneSymbol = filteredTranscriptConsequences[0].gene_symbol
+            geneId = filteredTranscriptConsequences[0].gene_id
+          }
 
           console.log("chrom:", chrom, "pos:", pos, "ref:", ref, "alt:", alt)
           console.log("mostSevereConsequence:", mostSevereConsequence)
@@ -448,6 +463,8 @@
               ref: ref,
               alt: alt,
               mostSevereConsequence: mostSevereConsequence,
+              geneSymbol: geneSymbol,
+              geneId: geneId,
             }
           )
         })
