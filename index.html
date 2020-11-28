@@ -531,7 +531,7 @@
     
     const hgFromUrl = $.urlParam('hg')
     if (hgFromUrl) {
-      $("#hg").val(hgFromUrl)
+	$("input[name='hg'][value='"+hgFromUrl+"']").prop("checked", true)
     }
       
     const inputFromUrl = $.urlParam('input')
