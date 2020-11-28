@@ -528,18 +528,13 @@
         $('.question').popup()
       })
     })
-
-    const inputFromUrl = $.urlParam('input')
-    /*
+    
     const hgFromUrl = $.urlParam('hg')
     if (hgFromUrl) {
       $("#hg").val(hgFromUrl)
     }
-    const oneOrZeroBasedCoordsFromUrl = $.urlParam('oneOrZeroBasedCoords')
-    if (oneOrZeroBasedCoordsFromUrl) {
-      $("#oneOrZeroBasedCoords").val(oneOrZeroBasedCoordsFromUrl)
-    }
-    */
+      
+    const inputFromUrl = $.urlParam('input')
     if (inputFromUrl) {
       $("#search-box").val(inputFromUrl)
       $("#submit-button").click()
