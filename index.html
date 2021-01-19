@@ -443,7 +443,7 @@
           const ref = vcfString[2]
           const alt = vcfString[3]
           const mostSevereConsequence = (response[0].most_severe_consequence || "").replace(/_/g, " ")
-          const filteredTranscriptConsequences = response[0].transcript_consequences.filter(t => t.consequence_terms && t.consequence_terms.includes(response[0].most_severe_consequence))
+          const filteredTranscriptConsequences = response[0].transcript_consequences ? response[0].transcript_consequences.filter(t => t.consequence_terms && t.consequence_terms.includes(response[0].most_severe_consequence)) : []
 
           let geneSymbol = "", geneId = ""
           if (filteredTranscriptConsequences.length > 0) {
