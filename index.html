@@ -56,7 +56,7 @@
           <a href="https://plants.ensembl.org/Oryza_sativa/Tools/AssemblyConverter" target="_blank">Ensembl Assembly Converter</a>.
           Under the hood, it uses the <a href="http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64" target="_blank">UCSC liftOver command-line tool</a>.<br/>
           <br />
-          Issues or feature requests can be submitted via <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">github</a>.<br />
+          To submit issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">broadinstitute/liftover/issues</a>.<br />
         </div>
         <br />
         <br />
@@ -528,12 +528,12 @@
         $('.question').popup()
       })
     })
-    
+
     const hgFromUrl = $.urlParam('hg')
     if (hgFromUrl) {
 	$("input[name='hg'][value='"+hgFromUrl+"']").prop("checked", true)
     }
-      
+
     const inputFromUrl = $.urlParam('input')
     if (inputFromUrl) {
       $("#search-box").val(inputFromUrl)
