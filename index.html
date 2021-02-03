@@ -146,27 +146,30 @@
   const VARIANT_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
           "[-\\s:]+" +
-          "([0-9]{1,9})" +
-          "[-\\s:]+" +
+          "([0-9,]+)" +
+          "[-\\s:]*" +
           "([ACGT]+)" +
           "[-\\s:>]+" +
-          "([ACGT]+)",
+          "([ACGT]+)" +
+          "[,\\s]*$",
           'i'
   )
 
   const POSITION_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
           "[-\\s:]+" +
-          "([0-9]{1,9})",
+          "([0-9,]+)" +
+          "[,\\s]*$",
           'i'
   )
 
   const INTERVAL_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
           "[-\\s:]+" +
-          "([0-9]{1,9})" +
+          "([0-9,]+)" +
           "[-\\s:]+" +
-          "([0-9]{1,9})",
+          "([0-9,]+)" +
+          "[,\\s]*$",
           'i'
   )
 
@@ -237,8 +240,8 @@
       const chrom = m[2].toUpperCase()
       return {
         chrom: chrom,
-        start: m[3],
-        end: m[4],
+        start: m[3].replace(/,/g, ""),
+        end: m[4].replace(/,/g, ""),
       }
     }
 
@@ -251,7 +254,7 @@
       const chrom = m[2].toUpperCase()
       return {
         chrom: chrom,
-        pos: m[3],
+        pos: m[3].replace(/,/g, ""),
       }
     }
 
@@ -271,7 +274,7 @@
         throw "Invalid genomeVersion: " + genomeVersion
       }
 
-      const pos = parseInt(m[3])
+      const pos = parseInt(m[3].replace(/,/g, ""))
       const ref = m[4]
       const alt = m[5]
 
@@ -440,7 +443,7 @@
           const ref = vcfString[2]
           const alt = vcfString[3]
           const mostSevereConsequence = (response[0].most_severe_consequence || "").replace(/_/g, " ")
-          const filteredTranscriptConsequences = response[0].transcript_consequences.filter(t => t.consequence_terms && t.consequence_terms.includes(response[0].most_severe_consequence))
+          const filteredTranscriptConsequences = response[0].transcript_consequences ? response[0].transcript_consequences.filter(t => t.consequence_terms && t.consequence_terms.includes(response[0].most_severe_consequence)) : []
 
           let geneSymbol = "", geneId = ""
           if (filteredTranscriptConsequences.length > 0) {
