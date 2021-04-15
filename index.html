@@ -147,36 +147,37 @@
 </div>
 
 <script>
-  const different_kinds_of_dashes = ['-','­','־','᠆','‐','‑','‒','–','—','―','⁻','₋','−','﹘','﹣','－'].join('')
-  
   const VARIANT_RE = new RegExp(
+          "^[\\s]*" +
           "(chr)?([0-9XYMTt]{1,2})" +
-          "[-"+different_kinds_of_dashes+"\\s:]+" +
+          "[-\\p{Pd}\\s:]+" +
           "([0-9,]+)" +
-          "[-"+different_kinds_of_dashes+"\\s:]*" +
+          "[-\\p{Pd}\\s:]*" +
           "([ACGT]+)" +
-          "[-"+different_kinds_of_dashes+"\\s:>]+" +
+          "[-\\p{Pd}\\s:>]+" +
           "([ACGT]+)" +
           "[,\\s]*$",
-          'i'
+          'iu'
   )
 
   const POSITION_RE = new RegExp(
+          "^[\\s]*" +
           "(chr)?([0-9XYMTt]{1,2})" +
-          "[-"+different_kinds_of_dashes+"\\s:]+" +
+          "[-\\p{Pd}\\s:]+" +
           "([0-9,]+)" +
           "[,\\s]*$",
-          'i'
+          'iu'
   )
 
   const INTERVAL_RE = new RegExp(
+          "^[\\s]*" +
           "(chr)?([0-9XYMTt]{1,2})" +
-          "[-"+different_kinds_of_dashes+"\\s:]+" +
+          "[-\\p{Pd}\\s:]+" +
           "([0-9,]+)" +
-          "[-"+different_kinds_of_dashes+"\\s:]+" +
+          "[-\\p{Pd}\\s:]+" +
           "([0-9,]+)" +
           "[,\\s]*$",
-          'i'
+          'iu'
   )
 
   const GRCH37_contigs = {
