@@ -147,9 +147,11 @@
 </div>
 
 <script>
+  const different_kinds_of_dashes = ['-','­','־','᠆','‐','‑','‒','–','—','―','⁻','₋','−','﹘','﹣','－'].join('')
+  
   const VARIANT_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
-          "[-\\s:]+" +
+          "[-"+different_kinds_of_dashes+"\\s:]+" +
           "([0-9,]+)" +
           "[-\\s:]*" +
           "([ACGT]+)" +
@@ -161,7 +163,7 @@
 
   const POSITION_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
-          "[-\\s:]+" +
+          "[-"+different_kinds_of_dashes+"\\s:]+" +
           "([0-9,]+)" +
           "[,\\s]*$",
           'i'
@@ -169,7 +171,7 @@
 
   const INTERVAL_RE = new RegExp(
           "(chr)?([0-9XYMTt]{1,2})" +
-          "[-\\s:]+" +
+          "[-"+different_kinds_of_dashes+"\\s:]+" +
           "([0-9,]+)" +
           "[-\\s:]+" +
           "([0-9,]+)" +
