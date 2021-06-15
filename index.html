@@ -17,7 +17,6 @@
 
     gtag('config', 'G-S9Q0L7CED6');
   </script>
-
   <style>
     body, .ui.form, label {
       font-size: 11pt !important;
@@ -43,106 +42,154 @@
       padding: 0px 6px;
       font-weight: bold;
     }
+
+    .only-large-screen {
+      display: none !important;
+    }
+
+    @media screen and (min-width: 770px) {
+      .only-large-screen {
+        display: block !important;
+      }
+    }
+
+    .results-div {
+      width: 100%;
+      position: static;
+    }
+
+    @media screen and (max-width: 1400px) {
+      .results-div {
+        width: 85vw;
+        position: relative;
+      }
+    }
+
   </style>
 </head>
 <body>
-<div class="ui stackable grid">
-  <div class="row">
-    <div class="one wide column"></div>
-    <div class="seven wide column">
-      <div style="padding:25px 0px">
-        <div style="padding-bottom: 10px">Lift over variants, positions, or intervals from one reference genome version to another.</div>
-        <a id="about-details-button" href="#" onclick="$('#about-details').show();$('#about-details-button').hide();">more info...</a>
-        <div id="about-details" style="display:none">
-          This web interface supports more input formats and requires fewer clicks than existing interfaces like
-          <a href="https://genome.ucsc.edu/cgi-bin/hgLiftOver" target="_blank">UCSC LiftOver</a> and
-          <a href="https://grch37.ensembl.org/Homo_sapiens/Tools/AssemblyConverter?db=core" target="_blank">Ensembl Assembly Converter</a>.
-          Under the hood, it uses the <a href="http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64" target="_blank">UCSC liftOver command-line tool</a>.<br/>
-          <br />
-          To submit issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">broadinstitute/liftover/issues</a>.<br />
-        </div>
-        <br />
-        <br />
-
-        <b>Input formats</b>:
-        <div id="input-formats-short">
-          <div style="padding: 10px 15px">
-            chr8:141310715 <br />
-            chr8:141310715 T>G <br />
-            NM_000552.4(VWF):c.3797C>A (p.Pro1266Gln) <br />
-            chr8:141310715-141310720 <br />
-          </div>
-          <a href="#" onclick="$('#input-formats-long').show();$('#input-formats-short').hide();">more formats...</a><br />
-          <br />
-        </div>
-        <div id="input-formats-long" style="display: none">
-          <ul>
-            <li><b>Positions:</b><br />chr8:141310715<br />chr8-141310715<br />chr8 &nbsp; 141310715<br /></li>
-            <li><b>Variants:</b><br />chr8:141310715 T>G<br />chr8-141310715-T-G<br />NM_000552.4(VWF):c.3797C>A (p.Pro1266Gln)</li>
-            <li><b>Intervals:</b><br />chr8:141310715-141310720<br />chr8 &nbsp; 141310715 &nbsp; 141310720</li>
-          </ul>
-        </div>
-        The "chr" prefix is optional, and separators can be <code>:</code>, <code>-</code>, <code>&gt;</code>, or space(s).
-      </div>
-      <br />
-
-      <div class="ui form" style="width:100%">
-        <div class="ui input" style="padding-bottom:30px; padding-right:8px; width:100%">
-          <input id="search-box" type="text" style="width: 100%; padding: 7px 10px" placeholder="Enter a position, variant, or interval">
-        </div>
-        <!-- div class="field" style="padding-bottom: 10px;">
-            <textarea id="search-box2" rows="1" style="width: 100%" placeholder="Enter variant..."></textarea>
-        </div -->
-        <div class="ui stackable grid">
+  <div class="ui stackable grid">
+    <div class="row">
+      <div class="one wide column only-large-screen"></div>
+      <div class="nine wide column">
+        <div class="ui grid">
           <div class="row">
-            <div class="thirteen wide column">
-              <div class="field" style="padding-right:10px">
-                <!-- <div style="white-space: nowrap; display: inline-block; padding-bottom:10px;"><b>Lift over:</b></span> -->
-                <div class="ui radio checkbox" style="display: inline-block; padding-right:50px; padding-bottom:15px">
-                  <input type="radio" name="hg" value="hg19-to-hg38" checked /><label>hg19 => hg38</label>
-                </div>
-                <div class="ui radio checkbox" style="display: inline-block; padding-bottom:10px">
-                  <input type="radio" name="hg" value="hg38-to-hg19" /><label>hg38 => hg19</label>
-                </div>
-              </div>
-            </div>
-            <!--
-            <div class="eight wide column">
-              <div class="field" style="padding-right:10px">
-                <div style="white-space: nowrap; padding-bottom:10px;">
-                  <b>Coordinates:</b>
-                  <a href="https://www.biostars.org/p/84686/" target="_blank">
-                    <i style="margin-left:20px" class="question circle outline icon" data-position="right center" data-content=""></i>
-                  </a>
-                </div>
-                <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
-                  <input type="radio" name="one-or-zero-based-coords" value="1" checked /><label>1-based (VCF, GFF, GTF, SAM, etc.)</label>
+            <div class="twelve wide column">
+              <div style="padding:25px 0px">
+                <div style="padding-bottom: 10px">Lift over variants, positions, or intervals from one reference genome version to another.</div>
+                <a id="about-details-button" href="#" onclick="$('#about-details').show();$('#about-details-button').hide();">more info...</a>
+                <div id="about-details" style="display:none">
+                  This web interface supports more input formats and requires fewer clicks than existing interfaces like
+                  <a href="https://genome.ucsc.edu/cgi-bin/hgLiftOver" target="_blank">UCSC LiftOver</a> and
+                  <a href="https://grch37.ensembl.org/Homo_sapiens/Tools/AssemblyConverter?db=core" target="_blank">Ensembl Assembly Converter</a>.
+                  Under the hood, it uses the <a href="http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64" target="_blank">UCSC liftOver command-line tool</a>.<br/>
+                  <br />
+                  To submit issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">broadinstitute/liftover/issues</a>.<br />
                 </div>
                 <br />
-                <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
-                  <input type="radio" name="one-or-zero-based-coords" value="0" /><label>0-based (BED, etc.)</label>
+                <br />
+
+                <b>Input formats</b>:
+                <div id="input-formats-short">
+                  <div style="padding: 10px 15px">
+                    chr8:141310715 <br />
+                    chr8:141310715 T>G <br />
+                    NM_000552.4(VWF):c.3797C>A (p.Pro1266Gln) <br />
+                    chr8:141310715-141310720 <br />
+                  </div>
+                  <a href="#" onclick="$('#input-formats-long').show();$('#input-formats-short').hide();">more formats...</a><br />
+                  <br />
+                </div>
+                <div id="input-formats-long" style="display: none">
+                  <ul>
+                    <li><b>Positions:</b><br />chr8:141310715<br />chr8-141310715<br />chr8 &nbsp; 141310715<br /></li>
+                    <li><b>Variants:</b><br />chr8:141310715 T>G<br />chr8-141310715-T-G<br />NM_000552.4(VWF):c.3797C>A (p.Pro1266Gln)</li>
+                    <li><b>Intervals:</b><br />chr8:141310715-141310720<br />chr8 &nbsp; 141310715 &nbsp; 141310720</li>
+                  </ul>
+                </div>
+                The "chr" prefix is optional, and separators can be <code>:</code>, <code>-</code>, <code>&gt;</code>, or space(s).
+              </div>
+              <br />
+
+              <div class="ui form" style="width:100%">
+                <div class="ui input" style="padding-bottom:30px; padding-right:8px; width:100%">
+                  <input id="search-box" type="text" style="width: 100%; padding: 7px 10px" placeholder="Enter a position, variant, or interval">
+                </div>
+                <!-- div class="field" style="padding-bottom: 10px;">
+                    <textarea id="search-box2" rows="1" style="width: 100%" placeholder="Enter variant..."></textarea>
+                </div -->
+                <div class="ui stackable grid">
+                  <div class="row">
+                    <div class="thirteen wide column">
+                      <div class="field" style="padding-right:10px">
+                        <!-- <div style="white-space: nowrap; display: inline-block; padding-bottom:10px;"><b>Lift over:</b></span> -->
+                        <div class="ui radio checkbox" style="display: inline-block; padding-right:50px; padding-bottom:15px">
+                          <input type="radio" name="hg" value="hg19-to-hg38" checked /><label>hg19 => hg38</label>
+                        </div>
+                        <div class="ui radio checkbox" style="display: inline-block; padding-bottom:10px">
+                          <input type="radio" name="hg" value="hg38-to-hg19" /><label>hg38 => hg19</label>
+                        </div>
+                      </div>
+                    </div>
+                    <!--
+                    <div class="eight wide column">
+                      <div class="field" style="padding-right:10px">
+                        <div style="white-space: nowrap; padding-bottom:10px;">
+                          <b>Coordinates:</b>
+                          <a href="https://www.biostars.org/p/84686/" target="_blank">
+                            <i style="margin-left:20px" class="question circle outline icon" data-position="right center" data-content=""></i>
+                          </a>
+                        </div>
+                        <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
+                          <input type="radio" name="one-or-zero-based-coords" value="1" checked /><label>1-based (VCF, GFF, GTF, SAM, etc.)</label>
+                        </div>
+                        <br />
+                        <div class="ui radio checkbox" style="padding-left:15px; padding-bottom:10px">
+                          <input type="radio" name="one-or-zero-based-coords" value="0" /><label>0-based (BED, etc.)</label>
+                        </div>
+                      </div>
+                    </div>
+                    -->
+                    <div class="three wide column">
+                      <button id="submit-button" class="ui primary button">Submit</button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            -->
-            <div class="three wide column">
-              <button id="submit-button" class="ui primary button">Submit</button>
             </div>
           </div>
         </div>
       </div>
+      <div class="five wide column">
+        <div class="only-large-screen" style="padding:25px 0px">
+          <div><i>What's New</i></div>
+          <br />
+          <div>
+            To post issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">liftover/issues</a><br />
+            <br />
+            <b>June 15, 2021</b><br />
+            - telomere-to-telomere (T2T) liftover coming soon<br/>
+          </div>
+          <br />
+          <div>
+            <b>Related web tools:</b><br />
+            <a href="https://spliceailookup.broadinstitute.org">SpliceAI Lookup</a> - Check SpliceAI scores for SNPs or InDels<br />
+            <a href="https://cma-search.broadinstitute.org">CMA search</a> - search OMIM by genomic region, gene name, phenotype, etc.<br />
+          </div>
+        </div>
+      </div>
+      <div class="one wide column only-large-screen"></div>
     </div>
-    <div class="eight wide column"></div>
-  </div>
+
   <div class="row">
-    <div class="one wide column"></div>
-    <div class="nine wide column">
-      <div>
+    <div class="one wide column only-large-screen"></div>
+    <div class="eight wide column">
+      <div class="results-div">
         <div id="error-box" style="color:darkred"></div>
         <div id="response-box"></div>
       </div>
     </div>
-    <div class="six wide column"></div>
+    <div class="one wide column only-large-screen"></div>
   </div>
 </div>
 
