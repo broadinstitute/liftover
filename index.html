@@ -130,7 +130,7 @@
                           <input type="radio" name="hg" value="hg38-to-hg19" /><label>hg38 => hg19</label>
                         </div>
                         <div class="ui radio checkbox" style="display: inline-block; padding-bottom:10px">
-                          <input type="radio" name="hg" value="hg38-to-t2t" /><label>hg38 => <a href="https://www.ncbi.nlm.nih.gov/assembly/GCA_009914755.3" target="_blank">T2T v1.1</a></label>
+                          <input type="radio" name="hg" value="hg38-to-t2t" /><label>hg38 => <a href="https://www.ncbi.nlm.nih.gov/assembly/GCA_009914755.3" target="_blank">T2T v2</a></label>
                         </div>
                       </div>
                     </div>
@@ -170,6 +170,9 @@
           <div>
             To post issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">liftover/issues</a><br />
             <br />
+            <b>August 14, 2022</b><br />
+            Updated telomere-to-telomere (T2T) from v1.1 to <a href="https://genome.ucsc.edu/cgi-bin/hgTrackUi?g=hub_3267197_hgLiftOver">v2</a>.<br />
+            <br />	    
             <b>August 10, 2021</b><br />
             Updated telomere-to-telomere (T2T) to v1.1 instead of v1.0 using chain files shared <a href="https://github.com/marbl/CHM13/issues/29">here</a>.<br/>
 	    <br />
@@ -365,7 +368,7 @@
      */
       chrom = chrom.toUpperCase().replace('CHR', '')
       if (genomeVersion == "t2t") {
-	  return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hub_2395475_t2t-chm13-v1.0&position=chr"+chrom+":"+start+"-"+end
+	  return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hub_2395475_t2t-chm13-v2.0&position=chr"+chrom+":"+start+"-"+end
       } else {
 	  genomeVersion = genomeVersion.replace('37', '19').replace("hg", "")
 	  return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg"+genomeVersion+"&position=chr"+chrom+":"+start+"-"+end
