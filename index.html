@@ -120,17 +120,29 @@
                 </div -->
                 <div class="ui stackable grid">
                   <div class="row">
-                    <div class="thirteen wide column">
+                    <div class="five wide column">
                       <div class="field" style="padding-right:10px">
                         <!-- <div style="white-space: nowrap; display: inline-block; padding-bottom:10px;"><b>Lift over:</b></span> -->
-                        <div class="ui radio checkbox" style="display: inline-block; padding-right:50px; padding-bottom:15px">
+                        <div class="ui radio checkbox" style="display: inline-block; padding-right:50px; padding-bottom:25px">
                           <input type="radio" name="hg" value="hg19-to-hg38" checked /><label>hg19 => hg38</label>
                         </div>
-                        <div class="ui radio checkbox" style="display: inline-block; padding-right:50px; padding-bottom:10px">
-                          <input type="radio" name="hg" value="hg38-to-hg19" /><label>hg38 => hg19</label>
-                        </div>
-                        <div class="ui radio checkbox" style="display: inline-block; padding-bottom:10px">
+                        <br />
+                        <div class="ui radio checkbox" style="display: inline-block; padding-right:50px; padding-bottom:25px">
                           <input type="radio" name="hg" value="hg38-to-t2t" /><label>hg38 => <a href="https://www.ncbi.nlm.nih.gov/assembly/GCA_009914755.4" target="_blank">T2T v2</a></label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="eight wide column">
+                      <div class="field" style="padding-right:10px">
+                        <!-- <div style="white-space: nowrap; display: inline-block; padding-bottom:10px;"><b>Lift over:</b></span> -->
+                        <div>
+                          <div class="ui radio checkbox" style="display: inline-block; padding-right:50px; padding-bottom:25px">
+                            <input type="radio" name="hg" value="hg38-to-hg19" /><label>hg38 => hg19</label>
+                          </div>
+                          <br />
+                          <div class="ui radio checkbox" style="display: inline-block; padding-bottom:25px">
+                            <input type="radio" name="hg" value="t2t-to-hg38" /><label><a href="https://www.ncbi.nlm.nih.gov/assembly/GCA_009914755.4" target="_blank">T2T v2</a> => hg38</label>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -169,6 +181,9 @@
           <br />
           <div>
             To post issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">liftover/issues</a><br />
+            <br />
+            <b>December 16, 2022</b><br />
+            Added telomere-to-telomere (T2T) => hg38 option.<br />
             <br />
             <b>August 14, 2022</b><br />
             Updated telomere-to-telomere (T2T) from v1.1 to <a href="https://genome.ucsc.edu/cgi-bin/hgTrackUi?g=hub_3267197_hgLiftOver">v2</a>.<br />
@@ -461,6 +476,8 @@
         inputGenomeVersion = "37"
       } else if (hg.startsWith("hg38-to-")) {
         inputGenomeVersion = "38"
+      } else if (hg.startsWith("t2t-to-")) {
+        inputGenomeVersion = "t2t"
       } else {
         console.error("Unexpected 'hg' value: " + hg)
         return
@@ -473,16 +490,39 @@
 
       let promise;
       if (VARIANT_RE.test(input) || (!INTERVAL_RE.test(input) && !POSITION_RE.test(input))) {
-        const variantHgvs = parseVariantToHGVS(input, inputGenomeVersion)
-
         let ensemblApiUrlPrefix = ""
         if (inputGenomeVersion == "37") {
           ensemblApiUrlPrefix = "grch37."
         }
 
-        promise = $.getJSON(
-          "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/hgvs/" + variantHgvs + "?content-type=application/json&vcf_string=1"
-        ).catch(function(error) {
+        let request;
+        if (inputGenomeVersion != "t2t") {
+          const variantHgvs = parseVariantToHGVS(input, inputGenomeVersion)
+          request = $.getJSON(
+              "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/hgvs/" + variantHgvs + "?content-type=application/json&vcf_string=1"
+          )
+        } else {
+
+          request = $.Deferred()
+          const m = input.match(VARIANT_RE)
+          if (m) {
+            let chrom = m[2].toUpperCase()
+            const pos = parseInt(m[3].replace(/,/g, ""))
+            const ref = m[4]
+            const alt = m[5]
+
+            console.log("Resolving")
+            request.resolve([{
+              "vcf_string": `${chrom}-${pos}-${ref}-${alt}`,
+            }]);
+
+            console.log("Rejecting")
+          }
+          request.reject({ "responseText": `Could not parse variant: ${input}` })
+
+        }
+
+        promise = request.catch(function(error) {
           let errorText = error.responseText
           try {
             errorText = JSON.parse(errorText).error
@@ -495,7 +535,7 @@
             errorText = input + " has unexpected reference allele. The hg" + inputGenomeVersion + " reference allele should be: " + refAlleleError[1]
           }
 
-          errorText = "Ensembl API error: " + errorText
+          //errorText = "Ensembl API error: " + errorText
           console.warn(errorText)
           throw { responseText: errorText }
         }).then(function(response) {
