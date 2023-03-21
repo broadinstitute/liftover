@@ -398,20 +398,24 @@
     output_genome = hg_split[1]
 
     const ucsc_browser_window_size = 2; //window size (in base pairs) around variant or positions
-    let input_string, output_string, input_url, output_url
+    let input_string, output_string, input_url, output_url, input_interval_size, output_interval_size
     if (response.format == "variant") {
       input_string = response.chrom + ":" + response.pos + " " + response.ref + ">" + response.alt
       output_string = response.output_chrom + ":" + response.output_pos + " " + response.output_ref + ">" + response.output_alt
+
       input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size)
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size, parseInt(response.output_pos) + response.output_ref.length + ucsc_browser_window_size)
     } else if (response.format == "position") {
       input_string = response.chrom + ":" + response.pos
       output_string = response.output_chrom + ":" + response.output_pos
+      input_interval_size = output_interval_size = ""
       input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size + 1, parseInt(response.pos) + ucsc_browser_window_size)
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size + 1, parseInt(response.output_pos) + ucsc_browser_window_size)
     } else if (response.format == "interval") {
       input_string = response.chrom + ":" + response.start + "-" + response.end
       output_string = response.output_chrom + ":" + response.output_start + "-" + response.output_end
+      input_interval_size = Math.abs(parseInt(response.start) - parseInt(response.end)).toLocaleString("en-US") + " bp"
+      output_interval_size = Math.abs(parseInt(response.output_end) - parseInt(response.output_start)).toLocaleString("en-US") + " bp"
       input_url =  getUCSCBrowserUrl(input_genome, response.chrom, response.start, response.end)
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_start, response.output_end)
     }
@@ -431,16 +435,16 @@
         "<td><a href='" + input_url + "' target='_blank'>" + input_string + "</a></td>" +
         "<td></td>" +
             (response.mostSevereConsequence && response.geneSymbol && response.geneId?
-            "<td><b>" + response.mostSevereConsequence + "</b></td>" +
-            "<td> in gene <b>" + response.geneSymbol + "</b> &nbsp; (" + response.geneId + ")</td>" :
-            "<td></td><td></td>") +
+        "<td><b>" + response.mostSevereConsequence + "</b></td>" +
+        "<td> in gene <b>" + response.geneSymbol + "</b> &nbsp; (" + response.geneId + ")</td>" :
+        "<td>" + input_interval_size + "</td><td></td>") +
       "</tr>" +
       "<tr>" +
         "<td><b>" + output_genome + ":</b></td>" +
         "<td></td>" +
         "<td><a href='" + output_url + "' target='_blank'>" + output_string + "</a></td>" +
         "<td>" + output_strand_info + "</td>" +
-        "<td></td>" +
+        "<td>" + output_interval_size + "</td>" +
         "<td></td>" +
       "</tr>" +
     "</table>"
