@@ -383,10 +383,10 @@
      */
       chrom = chrom.toUpperCase().replace('CHR', '')
       if (genomeVersion == "t2t") {
-	  return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hub_2395475_t2t-chm13-v2.0&position=chr"+chrom+":"+start+"-"+end
+	    return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hub_3671779_hs1&position=chr"+chrom+":"+start+"-"+end
       } else {
 	  genomeVersion = genomeVersion.replace('37', '19').replace("hg", "")
-	  return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg"+genomeVersion+"&position=chr"+chrom+":"+start+"-"+end
+	    return "https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg"+genomeVersion+"&position=chr"+chrom+":"+start+"-"+end
       }
   }
 
