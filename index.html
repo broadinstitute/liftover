@@ -76,13 +76,16 @@
           <div class="row">
             <div class="twelve wide column">
               <div style="padding:25px 0px">
-                <div style="padding-bottom: 10px">Lift over variants, positions, or intervals from one reference genome version to another.</div>
+                <div style="padding-bottom: 10px">Lift over variants, positions, or intervals from one reference genome to another.</div>
                 <a id="about-details-button" href="#" onclick="$('#about-details').show();$('#about-details-button').hide();">more info...</a>
                 <div id="about-details" style="display:none">
                   This web interface supports more input formats and requires fewer clicks than existing interfaces like
                   <a href="https://genome.ucsc.edu/cgi-bin/hgLiftOver" target="_blank">UCSC LiftOver</a> and
-                  <a href="https://grch37.ensembl.org/Homo_sapiens/Tools/AssemblyConverter?db=core" target="_blank">Ensembl Assembly Converter</a>.
-                  Under the hood, it uses the <a href="http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64" target="_blank">UCSC liftOver command-line tool</a>.<br/>
+                  <a href="https://grch37.ensembl.org/Homo_sapiens/Tools/AssemblyConverter?db=core" target="_blank">Ensembl Assembly Converter</a>.<br />
+                  <br/>
+                  Under the hood, it uses the <a href="http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64" target="_blank">UCSC liftOver command-line tool</a> for <b>intervals</b>,
+                  while for <b>variants</b> it uses a new <a href="https://github.com/freeseek/score#liftover-vcfs" target="_blank">bcftools plugin</a> which avoids many of the
+                  limitations of other liftover tools, particularly for indels. In all cases, it uses UCSC chain files. Also, the T2T reference version is hs1/T2T-CHM13v2.0.<br />
                   <br />
                   To submit issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">broadinstitute/liftover/issues</a>.<br />
                 </div>
@@ -180,17 +183,17 @@
           <div>
             To post issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">liftover/issues</a><br />
             <br />
-            <b>December 16, 2022</b><br />
-            Added <a href="https://www.ncbi.nlm.nih.gov/assembly/GCA_009914755.4" target="_blank">telomere-to-telomere</a> (T2T) => hg38 option.<br />
+            <b>December 7, 2023</b><br />
+            For liftover of <b>variants</b>, this site now uses a new <a href="https://github.com/freeseek/score#liftover-vcfs" target="_blank">bcftools plugin</a>
+            which avoids many of the limitations of other liftover tools, particularly for indels. Before this, the UCSC liftover tool
+            was used for both variant positions and intervals. Now, the UCSC tool is only used for intervals.
             <br />
-            <b>August 14, 2022</b><br />
-            Updated telomere-to-telomere (T2T) from v1.1 to <a href="https://genome.ucsc.edu/cgi-bin/hgTrackUi?g=hub_3267197_hgLiftOver">v2</a>.<br />
-            <br />	    
-            <b>August 10, 2021</b><br />
-            Updated telomere-to-telomere (T2T) to v1.1 instead of v1.0 using chain files shared <a href="https://github.com/marbl/CHM13/issues/29">here</a>.<br/>
-	    <br />
+            <br />
+            <b>December 16, 2022</b><br />
+            Added T2T => hg38<br />
+	        <br />
             <b>June 15, 2021</b><br />
-            Added hg38 => telomere-to-telomere (T2T v1.0). T2T v1.0 assembly is equivalent to v1.1 if you're not looking at the rDNA/telomere (see <a href="https://github.com/marbl/CHM13/issues/15">issue #15</a> for details).<br/>
+            Added hg38 => telomere-to-telomere (T2T) liftover<br/>
           </div>
           <br />
           <div>
@@ -310,7 +313,7 @@
   const LIFTOVER_API_URL = "https://spliceailookup-api.broadinstitute.org/liftover/"
   //const LIFTOVER_API_URL = "http://localhost:8080/liftover/"
 
-  function parseInterval(input) {
+  const parseInterval = (input) => {
     const m = input.match(INTERVAL_RE)
     if (m) {
       const chrom = m[2].toUpperCase()
@@ -324,7 +327,7 @@
     return null
   }
 
-  function parsePosition(input) {
+  const parsePosition = (input) => {
     const m = input.match(POSITION_RE)
     if (m) {
       const chrom = m[2].toUpperCase()
@@ -338,7 +341,7 @@
   }
 
 
-  function parseVariantToHGVS(variant, genomeVersion) {
+  const parseVariantToHGVS = (variant, genomeVersion) => {
     const m = variant.match(VARIANT_RE)
     if (m) {
       let chrom = m[2].toUpperCase()
@@ -370,7 +373,7 @@
     return variant
   }
 
-  function getUCSCBrowserUrl(genomeVersion, chrom, start, end) {
+  const getUCSCBrowserUrl = (genomeVersion, chrom, start, end) => {
     /**
      * Returns the UCSC genome browser url.
      *
@@ -388,19 +391,24 @@
       }
   }
 
-  function generateResultsTable(response) {
+  const generateResultsTable = (response) => {
     console.log("Processing result:", response)
 
-    hg_split = response.hg.split("-to-")
-    input_genome = hg_split[0]
-    output_genome = hg_split[1]
+    if (!response.hg) {
+      console.error("Unexpected response arg:", response)
+      return
+    }
+
+    const hg_split = response.hg.split("-to-")
+    const input_genome = hg_split[0]
+    const output_genome = hg_split[1]
 
     const ucsc_browser_window_size = 2; //window size (in base pairs) around variant or positions
     let input_string, output_string, input_url, output_url, input_interval_size, output_interval_size
     if (response.format == "variant") {
       input_string = response.chrom + ":" + response.pos + " " + response.ref + ">" + response.alt
       output_string = response.output_chrom + ":" + response.output_pos + " " + response.output_ref + ">" + response.output_alt
-
+      input_interval_size = output_interval_size = ""
       input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size)
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size, parseInt(response.output_pos) + response.output_ref.length + ucsc_browser_window_size)
     } else if (response.format == "position") {
@@ -418,12 +426,14 @@
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_start, response.output_end)
     }
 
+    /*
     let output_strand_info
     if (response.output_strand == "-") {
       output_strand_info = "(negative strand)"
     } else {
       output_strand_info = "(same strand)"
     }
+    */
 
     return "<style>td { padding-left: 0px; padding-bottom: 20px; }</style>" +
      "<table class='ui stackable table'>" +
@@ -441,30 +451,31 @@
         "<td><b>" + output_genome + ":</b></td>" +
         "<td></td>" +
         "<td><a href='" + output_url + "' target='_blank'>" + output_string + "</a></td>" +
-        "<td>" + output_strand_info + "</td>" +
+        "<td>" + /*output_strand_info + */"</td>" +
         "<td>" + output_interval_size + "</td>" +
         "<td></td>" +
+      /* "</tr><tr><td colspan='2'></td><td colspan='4' style='color:#333333'><i>Using the " + response.liftover_tool + "</i></b></td>" + */
       "</tr>" +
     "</table>"
   }
 
-  $.urlParam = function (name) {
+  $.urlParam = (name) => {
     const results = new RegExp('[\?&#]?' + name + '=([^&#]*)').exec(window.location.hash);
     return (results !== null) ? decodeURIComponent(results[1]) || 0 : false;
   }
 
-  $(document).ready(function() {
+  $(document).ready(() => {
     $('.ui.radio.checkbox').checkbox()
     $('.question').popup()
     $("#search-box").focus()
 
-    $("#search-box").keydown(function (event) {
-      if ((event.keyCode || event.which) == 13) {
+    $("#search-box").keydown((e) => {
+      if ((e.keyCode || e.which) == 13) {
         $("#submit-button").click()
       }
     });
 
-    $("#submit-button").click(function() {
+    $("#submit-button").click(() => {
       const input = $("#search-box").val().trim()
       if (!input) {
         return
@@ -524,7 +535,7 @@
 
         }
 
-        promise = request.catch(function(error) {
+        promise = request.catch((error) => {
           let errorText = error.responseText
           try {
             errorText = JSON.parse(errorText).error
@@ -540,7 +551,7 @@
           //errorText = "Ensembl API error: " + errorText
           console.warn(errorText)
           throw { responseText: errorText }
-        }).then(function(response) {
+        }).then((response) => {
           console.log("Esnembl API response", response)
           if (!response || !response[0]) {
             throw { responseText: "Unable to parse Ensembl API repsonse: " + response }
@@ -612,7 +623,12 @@
 	    return
       }
 
-      promise.then(function(response) {
+      promise.then((response) => {
+
+        if (response.error) {
+          throw {responseText: response.error}
+        }
+
         $("#error-box").hide()
         $("#response-box").html(generateResultsTable(response))
         $("#response-box").show()
@@ -620,7 +636,7 @@
         // set url
         window.location.hash = "#" + $.param({input: input, hg: hg}) //oneOrZeroBasedCoords: oneOrZeroBasedCoords
 
-      }).catch(function(error) {
+      }).catch((error) => {
         $("#response-box").hide()
         let errorText = error.responseText
         try {
@@ -635,7 +651,7 @@
         }
         $("#error-box").html(errorText)
         $("#error-box").show()
-      }).always(function() {
+      }).always(() => {
         $("#submit-button").removeClass(["loading", "disabled"]);
         $('.question').popup()
       })
@@ -643,7 +659,7 @@
 
     const hgFromUrl = $.urlParam('hg')
     if (hgFromUrl) {
-	$("input[name='hg'][value='"+hgFromUrl+"']").prop("checked", true)
+	  $("input[name='hg'][value='"+hgFromUrl+"']").prop("checked", true)
     }
 
     const inputFromUrl = $.urlParam('input')
