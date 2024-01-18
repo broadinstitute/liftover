@@ -436,7 +436,7 @@
     */
 
     return "<style>td { padding-left: 0px; padding-bottom: 20px; }</style>" +
-     "<table class='ui stackable table'>" +
+     "<table class='ui stackable table' style='border:none !important;'>" +
       "<tr>" +
         "<td><b>" + input_genome + ":</b></td>" +
         "<td></td>" +
@@ -456,6 +456,9 @@
         "<td></td>" +
       /* "</tr><tr><td colspan='2'></td><td colspan='4' style='color:#333333'><i>Using the " + response.liftover_tool + "</i></b></td>" + */
       "</tr>" +
+      "<tr><td colspan='6' style='padding-top: 20px; padding-bottom: 20px; text-align: right;'>" +
+            "Lifted over by the <i>" + response.liftover_tool + "</i></td></tr>" +
+
     "</table>"
   }
 
