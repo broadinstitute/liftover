@@ -73,25 +73,27 @@ def run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=False):
         input_file.write(f"""##fileformat=VCFv4.2
 ##contig=<ID={chrom},length=100000000>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-{chrom}	{pos}	.	{ref}	{alt}	60	.""")
+{chrom}	{pos}	.	{ref}	{alt}	60	.	.""")
         input_file.flush()
+
         command = (
             f"cat {input_file.name} | "
-            f"bcftools plugin liftover -- --src-fasta-ref {source_fasta_path} --fasta-ref {destination_fasta_path} --chain {chain_file_path} | "
-            f"grep -v ^#  > {output_file.name}"
+            f"bcftools plugin liftover -- --src-fasta-ref {source_fasta_path} --fasta-ref {destination_fasta_path} --chain {chain_file_path} 2>&1 | "
+            f"tail -n 1 > {output_file.name}"
         )
 
         try:
             subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, encoding="UTF-8")
-            results = output_file.read()
 
-            if verbose:
-                print(f"{BCFTOOLS_LIFTOVER_TOOL} {hg} liftover on {chrom}:{pos} {ref}>{alt} returned: {results}", flush=True)
+            results = output_file.read().strip()
 
             # example: chr8	140300616	.	T	G	60	.	.
 
             result_fields = results.strip().split("\t")
-            if len(result_fields) > 5:
+            if verbose:
+                print(f"{BCFTOOLS_LIFTOVER_TOOL} {hg} liftover on {chrom}:{pos} {ref}>{alt} returned: {result_fields}", flush=True)
+
+            if len(result_fields) > 4:
                 result_fields[1] = int(result_fields[1])
 
                 return {
