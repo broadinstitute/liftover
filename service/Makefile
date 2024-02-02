@@ -23,7 +23,7 @@ deploy: build push
 		--allow-unauthenticated
 
 describe:
-	gcloud --project $(GCLOUD_PROJECT) run services describe liftover --region us-central1 --format yaml | tee service.yaml
+	gcloud --project $(GCLOUD_PROJECT) run services describe liftover --region us-central1 --format yaml | tee service.backup_copy.yaml
 
 test: build
 	docker run -p 8080:8080 $(TAG)
@@ -35,4 +35,4 @@ run: build
 	docker run -v ~/ref/:/ref  -it $(TAG) /bin/bash
 
 replace:
-	gcloud --project $(GCLOUD_PROJECT) run services replace service.yaml
+	gcloud --project $(GCLOUD_PROJECT) run services replace service.backup_copy.yaml
