@@ -1,7 +1,7 @@
 TAG = us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover:latest
 GCLOUD_PROJECT=spliceai-lookup-412920
 
-all: build push update_sha deploy
+all: build push update_sha deploy describe
 
 build:
 	docker build -f Dockerfile -t $(TAG) .
@@ -22,6 +22,9 @@ deploy: build push
 		--add-volume-mount=volume=ref,mount-path=/ref \
 		--allow-unauthenticated
 
+describe:
+	gcloud --project $(GCLOUD_PROJECT) run services describe liftover --region us-central1 --format yaml | tee service.yaml
+
 test: build
 	docker run -p 8080:8080 $(TAG)
 
@@ -30,3 +33,6 @@ test2: build
 
 run: build
 	docker run -v ~/ref/:/ref  -it $(TAG) /bin/bash
+
+replace:
+	gcloud --project $(GCLOUD_PROJECT) run services replace service.yaml

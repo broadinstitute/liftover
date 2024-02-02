@@ -1,0 +1,88 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+    run.googleapis.com/client-name: gcloud
+    run.googleapis.com/client-version: 462.0.1
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+    run.googleapis.com/launch-stage: BETA
+    run.googleapis.com/operation-id: b20ef6e5-4b7a-468c-9634-c6401a90672a
+    serving.knative.dev/creator: weisburd@broadinstitute.org
+    serving.knative.dev/lastModifier: weisburd@broadinstitute.org
+  creationTimestamp: '2024-02-02T05:49:15.799596Z'
+  generation: 3
+  labels:
+    cloud.googleapis.com/location: us-central1
+  name: liftover
+  namespace: '1042618492363'
+  resourceVersion: AAYQX8jEjTg
+  selfLink: /apis/serving.knative.dev/v1/namespaces/1042618492363/services/liftover
+  uid: c44610bb-6a61-4223-b7dd-a601b6e9c137
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: '10'
+        autoscaling.knative.dev/minScale: '0'
+        run.googleapis.com/client-name: gcloud
+        run.googleapis.com/client-version: 462.0.1
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/startup-cpu-boost: 'false'
+      labels:
+        client.knative.dev/nonce: uwizyroxxx
+        run.googleapis.com/startupProbeType: Default
+    spec:
+      containerConcurrency: 20
+      containers:
+      - image: us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover:latest
+        name: liftover-1
+        ports:
+        - containerPort: 8080
+          name: http1
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        startupProbe:
+          failureThreshold: 1
+          periodSeconds: 240
+          tcpSocket:
+            port: 8080
+          timeoutSeconds: 240
+        volumeMounts:
+        - mountPath: /ref
+          name: ref
+      serviceAccountName: 1042618492363-compute@developer.gserviceaccount.com
+      timeoutSeconds: 30
+      volumes:
+      - csi:
+          driver: gcsfuse.run.googleapis.com
+          readOnly: true
+          volumeAttributes:
+            bucketName: spliceai-lookup-reference-data
+        name: ref
+  traffic:
+  - latestRevision: true
+    percent: 100
+status:
+  address:
+    url: https://liftover-xwkwwwxdwq-uc.a.run.app
+  conditions:
+  - lastTransitionTime: '2024-02-02T05:57:16.525880Z'
+    status: 'True'
+    type: Ready
+  - lastTransitionTime: '2024-02-02T05:49:15.917631Z'
+    status: 'True'
+    type: ConfigurationsReady
+  - lastTransitionTime: '2024-02-02T05:57:16.419426Z'
+    status: 'True'
+    type: RoutesReady
+  latestCreatedRevisionName: liftover-00003-7hq
+  latestReadyRevisionName: liftover-00003-7hq
+  observedGeneration: 3
+  traffic:
+  - latestRevision: true
+    percent: 100
+    revisionName: liftover-00003-7hq
+  url: https://liftover-xwkwwwxdwq-uc.a.run.app
