@@ -27,3 +27,6 @@ test: build
 
 test2: build
 	gcloud beta code dev
+
+run: build
+	docker run -v ~/ref/:/ref  -it $(TAG) /bin/bash
