@@ -14,8 +14,8 @@ update_sha:
 
 deploy: build push
 	gcloud --project $(GCLOUD_PROJECT) beta run deploy liftover \
-		--execution-environment gen2 \
 		--image $(TAG) \
+		--concurrency 3 \
 		--execution-environment gen2 \
 		--region us-central1 \
 		--add-volume=name=ref,type=cloud-storage,bucket=spliceai-lookup-reference-data,readonly=true \

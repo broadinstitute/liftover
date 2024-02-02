@@ -7,16 +7,16 @@ metadata:
     run.googleapis.com/ingress: all
     run.googleapis.com/ingress-status: all
     run.googleapis.com/launch-stage: BETA
-    run.googleapis.com/operation-id: b20ef6e5-4b7a-468c-9634-c6401a90672a
+    run.googleapis.com/operation-id: 81bb6741-e7fb-4195-ab0b-900f9421b4d7
     serving.knative.dev/creator: weisburd@broadinstitute.org
     serving.knative.dev/lastModifier: weisburd@broadinstitute.org
   creationTimestamp: '2024-02-02T05:49:15.799596Z'
-  generation: 3
+  generation: 5
   labels:
     cloud.googleapis.com/location: us-central1
   name: liftover
   namespace: '1042618492363'
-  resourceVersion: AAYQX8jEjTg
+  resourceVersion: AAYQYD9E1Js
   selfLink: /apis/serving.knative.dev/v1/namespaces/1042618492363/services/liftover
   uid: c44610bb-6a61-4223-b7dd-a601b6e9c137
 spec:
@@ -30,10 +30,10 @@ spec:
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/startup-cpu-boost: 'false'
       labels:
-        client.knative.dev/nonce: uwizyroxxx
+        client.knative.dev/nonce: lciphxitly
         run.googleapis.com/startupProbeType: Default
     spec:
-      containerConcurrency: 20
+      containerConcurrency: 3
       containers:
       - image: us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover:latest
         name: liftover-1
@@ -69,20 +69,20 @@ status:
   address:
     url: https://liftover-xwkwwwxdwq-uc.a.run.app
   conditions:
-  - lastTransitionTime: '2024-02-02T05:57:16.525880Z'
+  - lastTransitionTime: '2024-02-02T06:30:24.644251Z'
     status: 'True'
     type: Ready
   - lastTransitionTime: '2024-02-02T05:49:15.917631Z'
     status: 'True'
     type: ConfigurationsReady
-  - lastTransitionTime: '2024-02-02T05:57:16.419426Z'
+  - lastTransitionTime: '2024-02-02T06:30:24.594139Z'
     status: 'True'
     type: RoutesReady
-  latestCreatedRevisionName: liftover-00003-7hq
-  latestReadyRevisionName: liftover-00003-7hq
-  observedGeneration: 3
+  latestCreatedRevisionName: liftover-00005-4vk
+  latestReadyRevisionName: liftover-00005-4vk
+  observedGeneration: 5
   traffic:
   - latestRevision: true
     percent: 100
-    revisionName: liftover-00003-7hq
+    revisionName: liftover-00005-4vk
   url: https://liftover-xwkwwwxdwq-uc.a.run.app
