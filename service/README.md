@@ -1,4 +1,4 @@
-This folder contains a liftover backend service designed for Google Cloud Run.
+This folder contains the liftover backend service designed for Google Cloud Run.
 
 `make` sub-commands:
   
