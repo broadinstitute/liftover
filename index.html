@@ -434,6 +434,14 @@
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, response.output_start, response.output_end)
     }
 
+    // make sure that hg38 has a "chr" prefix
+    if (input_genome == "hg38" && !input_string.startsWith("chr")) {
+      input_string = "chr" + input_string
+    }
+    if (output_genome == "hg38" && !output_string.startsWith("chr")) {
+      output_string = "chr" + output_string
+    }
+
     /*
     let output_strand_info
     if (response.output_strand == "-") {
