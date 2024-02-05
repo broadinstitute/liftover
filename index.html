@@ -251,6 +251,13 @@
           'iu'
   )
 
+  const RSID_RE = new RegExp(
+          "^[\\s]*" +
+          "(rs[0-9]+)" +
+          "[,\\s]*$",
+          'iu'
+  )
+
   const GRCH37_contigs = {
     "1": "NC_000001.10",
     "2": "NC_000002.11",
@@ -506,7 +513,7 @@
       $("#submit-button").addClass(["loading", "disabled"])
 
       let promise;
-      if (VARIANT_RE.test(input) || (!INTERVAL_RE.test(input) && !POSITION_RE.test(input))) {
+      if (VARIANT_RE.test(input) || RSID_RE.test(input) || (!INTERVAL_RE.test(input) && !POSITION_RE.test(input))) {
         let ensemblApiUrlPrefix = ""
         if (inputGenomeVersion == "37") {
           ensemblApiUrlPrefix = "grch37."
@@ -514,10 +521,17 @@
 
         let request;
         if (inputGenomeVersion != "t2t") {
-          const variantHgvs = parseVariantToHGVS(input, inputGenomeVersion)
-          request = $.getJSON(
-              "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/hgvs/" + variantHgvs + "?content-type=application/json&vcf_string=1"
-          )
+          if (RSID_RE.test(input)) {
+            const m = input.match(RSID_RE)
+            request = $.getJSON(
+              "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/id/" + m[1] + "?content-type=application/json&vcf_string=1"
+            )
+          } else {
+            const variantHgvs = parseVariantToHGVS(input, inputGenomeVersion)
+            request = $.getJSON(
+                "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/hgvs/" + variantHgvs + "?content-type=application/json&vcf_string=1"
+            )
+          }
         } else {
 
           request = $.Deferred()
@@ -561,7 +575,18 @@
             throw { responseText: "Unable to parse Ensembl API repsonse: " + response }
           }
 
-          const vcfString = (response[0].vcf_string || "---").split("-")
+          //check if response[0].vcf_string is an array or a string
+          let vcfString;
+          if (Array.isArray(response[0].vcf_string)) {
+            // this can happen for rsIDs that represent multiple collocated variants
+            vcfString = (response[0].vcf_string[0] || "---").split("-")
+            //append alt alleles from other collocated variants
+            for (let i = 1; i < response[0].vcf_string.length; i++) {
+              vcfString[3] += "," + response[0].vcf_string[i].split("-")[3]
+            }
+          } else {
+            vcfString = (response[0].vcf_string || "---").split("-")
+          }
           const chrom = vcfString[0]
           const pos = vcfString[1]
           const ref = vcfString[2]
