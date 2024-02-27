@@ -1,4 +1,4 @@
-This folder contains the [liftover.broadinstitute.org](https://liftover.broadinstitute.org) backend that's deployed to [Google Cloud Run](https://cloud.google.com/run).
+This folder contains the [liftover.broadinstitute.org](https://liftover.broadinstitute.org) backend that's deployed to [Google Cloud Run](https://cloud.google.com/run) (NOTE: Cloud Run is different from Google's Cloud Functions service).
 
 `make` sub-commands:
   
