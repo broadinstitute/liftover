@@ -15,6 +15,7 @@ update_sha:
 deploy: build push
 	gcloud --project $(GCLOUD_PROJECT) beta run deploy liftover \
 		--image $(TAG) \
+		--max-instances 8 \
 		--concurrency 3 \
 		--execution-environment gen2 \
 		--region us-central1 \

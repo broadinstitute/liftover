@@ -29,10 +29,14 @@ RUN wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSI
 RUN wget https://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/liftOver -O /usr/bin/liftOver \
     && chmod +x /usr/bin/liftOver
 
-RUN wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHs1.over.chain.gz \
-    && wget https://hgdownload.soe.ucsc.edu/goldenPath/hs1/liftOver/hs1ToHg38.over.chain.gz \
-    && wget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz \
-    && wget http://hgdownload.cse.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz
+# downloaded from
+#  https://hgdownload.soe.ucsc.edu/goldenPath/hs1/
+#  https://hgdownload.soe.ucsc.edu/goldenPath/hg19/
+#  https://hgdownload.soe.ucsc.edu/goldenPath/hg38/
+COPY hg38ToHs1.over.chain.gz /
+COPY hs1ToHg38.over.chain.gz /
+COPY hg19ToHg38.over.chain.gz /
+COPY hg38ToHg19.over.chain.gz /
 
 COPY requirements.txt /
 RUN python3 -m pip install --upgrade -r /requirements.txt
