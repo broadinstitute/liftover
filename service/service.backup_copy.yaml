@@ -7,16 +7,16 @@ metadata:
     run.googleapis.com/ingress: all
     run.googleapis.com/ingress-status: all
     run.googleapis.com/launch-stage: BETA
-    run.googleapis.com/operation-id: 467aeea7-45d7-4e48-a080-518a7999b958
+    run.googleapis.com/operation-id: 16a48f46-731f-432d-887b-e571710ca564
     serving.knative.dev/creator: weisburd@broadinstitute.org
     serving.knative.dev/lastModifier: weisburd@broadinstitute.org
   creationTimestamp: '2024-02-02T05:49:15.799596Z'
-  generation: 6
+  generation: 9
   labels:
     cloud.googleapis.com/location: us-central1
   name: liftover
   namespace: '1042618492363'
-  resourceVersion: AAYSmM4fmLs
+  resourceVersion: AAYSxnjdukk
   selfLink: /apis/serving.knative.dev/v1/namespaces/1042618492363/services/liftover
   uid: c44610bb-6a61-4223-b7dd-a601b6e9c137
 spec:
@@ -30,7 +30,7 @@ spec:
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/startup-cpu-boost: 'false'
       labels:
-        client.knative.dev/nonce: qexjonsdqo
+        client.knative.dev/nonce: wlyedfkmyh
         run.googleapis.com/startupProbeType: Default
     spec:
       containerConcurrency: 3
@@ -69,20 +69,20 @@ status:
   address:
     url: https://liftover-xwkwwwxdwq-uc.a.run.app
   conditions:
-  - lastTransitionTime: '2024-03-01T12:49:22.770107Z'
+  - lastTransitionTime: '2024-03-03T19:18:20.885577Z'
     status: 'True'
     type: Ready
   - lastTransitionTime: '2024-02-02T05:49:15.917631Z'
     status: 'True'
     type: ConfigurationsReady
-  - lastTransitionTime: '2024-03-01T12:49:22.738187Z'
+  - lastTransitionTime: '2024-03-03T19:18:20.840651Z'
     status: 'True'
     type: RoutesReady
-  latestCreatedRevisionName: liftover-00006-zjw
-  latestReadyRevisionName: liftover-00006-zjw
-  observedGeneration: 6
+  latestCreatedRevisionName: liftover-00009-b9r
+  latestReadyRevisionName: liftover-00009-b9r
+  observedGeneration: 9
   traffic:
   - latestRevision: true
     percent: 100
-    revisionName: liftover-00006-zjw
+    revisionName: liftover-00009-b9r
   url: https://liftover-xwkwwwxdwq-uc.a.run.app

@@ -183,16 +183,20 @@
           <div>
             To post issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">liftover/issues</a><br />
             <br />
+            <b>March 3, 2024</b><br />
+            - Moved server to Google Cloud Run<br />
+            - When showing the input variant in the result table, make sure, if it's an indel, it is displayed in left-aligned format<br />
+            <br />
             <b>January 18, 2024</b><br />
-            For liftover of <b>variants</b>, this site now uses a new <a href="https://github.com/freeseek/score#liftover-vcfs" target="_blank">bcftools plugin</a>
+            - For liftover of <b>variants</b>, this site now uses a new <a href="https://github.com/freeseek/score#liftover-vcfs" target="_blank">bcftools plugin</a>
             which avoids many of the limitations of other liftover tools (particularly for indels) as described in [<a href="https://academic.oup.com/bioinformatics/advance-article/doi/10.1093/bioinformatics/btae038/7585532">Genovese 2024</a>].
             <br />
             <br />
             <b>December 16, 2022</b><br />
-            Added T2T => hg38<br />
+            - Added T2T => hg38<br />
 	        <br />
             <b>June 15, 2021</b><br />
-            Added hg38 => telomere-to-telomere (T2T) liftover<br/>
+            - Added hg38 => telomere-to-telomere (T2T) liftover<br/>
           </div>
           <br />
           <div>
@@ -400,8 +404,6 @@
   }
 
   const generateResultsTable = (response) => {
-    console.log("Processing result:", response)
-
     if (!response.hg) {
       console.error("Unexpected response arg:", response)
       return
@@ -414,7 +416,14 @@
     const ucsc_browser_window_size = 2; //window size (in base pairs) around variant or positions
     let input_string, output_string, input_url, output_url, input_interval_size, output_interval_size
     if (response.format == "variant") {
-      input_string = response.chrom + ":" + response.pos + " " + response.ref + ">" + response.alt
+      if (response.normalized_ref && response.normalized_alt && response.normalized_ref.length != response.normalized_alt.length && (
+          parseInt(response.normalized_pos) != parseInt(response.pos) || response.normalized_ref != response.ref || response.normalized_alt != response.alt)
+      ) {
+        input_string = response.normalized_chrom + ":" + response.normalized_pos + " " + response.normalized_ref + ">" + response.normalized_alt + " &nbsp; (left-aligned)"
+      } else{
+        input_string = response.chrom + ":" + response.pos + " " + response.ref + ">" + response.alt
+      }
+
       output_string = response.output_chrom + ":" + response.output_pos + " " + response.output_ref + ">" + response.output_alt
       input_interval_size = output_interval_size = ""
       input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size)
@@ -426,7 +435,6 @@
       input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size + 1, parseInt(response.pos) + ucsc_browser_window_size)
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size + 1, parseInt(response.output_pos) + ucsc_browser_window_size)
     } else if (response.format == "interval") {
-      input_string = response.chrom + ":" + response.start + "-" + response.end
       output_string = response.output_chrom + ":" + response.output_start + "-" + response.output_end
       input_interval_size = Math.abs(parseInt(response.start) - parseInt(response.end)).toLocaleString("en-US") + " bp"
       output_interval_size = Math.abs(parseInt(response.output_end) - parseInt(response.output_start)).toLocaleString("en-US") + " bp"
@@ -608,8 +616,8 @@
             geneId = filteredTranscriptConsequences[0].gene_id
           }
 
-          console.log("chrom:", chrom, "pos:", pos, "ref:", ref, "alt:", alt)
-          console.log("mostSevereConsequence:", mostSevereConsequence)
+          console.log(`Variant string: ${chrom}-${pos}-${ref}-${alt}`)
+          console.log("Most-severe VEP consequence:", mostSevereConsequence)
 
           // call SpliceAI-lookup API
           return $.getJSON(
@@ -661,6 +669,8 @@
       }
 
       promise.then((response) => {
+        console.log("Liftover response:", response)
+
 
         if (response.error) {
           throw {responseText: response.error}

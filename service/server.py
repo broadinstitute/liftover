@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 import os
+import pysam.bcftools
 import subprocess
 import traceback
 import tempfile
@@ -19,9 +20,11 @@ DEBUG = True  #if socket.gethostname() == "spliceai-lookup" else True
 if not DEBUG:
     Talisman(app)
 
-HG19_FASTA_PATH = "/ref/hg19.fa"
-HG38_FASTA_PATH = "/ref/hg38.fa"
-T2T_FASTA_PATH = "/ref/chm13v2.0.fa"
+FASTA_PATHS = {
+    "hg19": "/ref/hg19.fa",
+    "hg38": "/ref/hg38.fa",
+    "t2t": "/ref/chm13v2.0.fa",
+}
 
 UCSC_LIFTOVER_TOOL = "UCSC liftover tool"
 BCFTOOLS_LIFTOVER_TOOL = "bcftools liftover plugin"
@@ -36,10 +39,10 @@ CHAIN_FILE_PATHS = {
 }
 
 LIFTOVER_REFERENCE_PATHS = {
-    "hg19-to-hg38": (HG19_FASTA_PATH, HG38_FASTA_PATH),
-    "hg38-to-hg19": (HG38_FASTA_PATH, HG19_FASTA_PATH),
-    "hg38-to-t2t": (HG38_FASTA_PATH, T2T_FASTA_PATH),
-    "t2t-to-hg38": (T2T_FASTA_PATH, HG38_FASTA_PATH),
+    "hg19-to-hg38": (FASTA_PATHS["hg19"], FASTA_PATHS["hg38"]),
+    "hg38-to-hg19": (FASTA_PATHS["hg38"], FASTA_PATHS["hg19"]),
+    "hg38-to-t2t": (FASTA_PATHS["hg38"], FASTA_PATHS["t2t"]),
+    "t2t-to-hg38": (FASTA_PATHS["t2t"], FASTA_PATHS["hg38"]),
 }
 
 
@@ -53,6 +56,10 @@ def error_response(error_message, source=None):
 def reverse_complement(seq):
     reverse_complement_map = dict(zip("ACGTN", "TGCAN"))
     return "".join([reverse_complement_map[n] for n in seq[::-1]])
+
+
+def get_user_ip(request):
+    return request.environ.get("HTTP_X_FORWARDED_FOR")
 
 
 def run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=False):
@@ -182,9 +189,96 @@ def run_UCSC_liftover_tool(hg, chrom, start, end, verbose=False):
         raise ValueError(f"{hg} liftover failed for {chrom}:{start}-{end} for unknown reasons")
 
 
+def run_bcftools_norm(genome_version, chrom, pos, ref, alt):
+    if genome_version not in FASTA_PATHS:
+        raise ValueError(f"Unexpected genome_version: {genome_version}")
+
+    if len(ref) == len(alt):
+        return {
+            "normalized_chrom": chrom,
+            "normalized_pos": pos,
+            "normalized_ref": ref,
+            "normalized_alt": alt,
+        }
+
+    if genome_version == "hg19":
+        chrom = chrom.replace("chr", "")
+    else:
+        chrom = "chr" + chrom.replace("chr", "")
+
+    with tempfile.NamedTemporaryFile(suffix=".vcf", mode="wt", encoding="UTF-8") as input_file:
+        input_file.write(f"""##fileformat=VCFv4.2        
+##contig=<ID={chrom},length=100000000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+{chrom}	{pos}	.	{ref}	{alt}	60	.	.""")
+        input_file.flush()
+        
+        fasta_path = FASTA_PATHS[genome_version]
+
+        results = pysam.bcftools.norm("-f", fasta_path, input_file.name, split_lines=True)
+
+    if len(results) == 0:
+        raise ValueError(f"bcftools norm failed for {chrom}:{pos} {ref}>{alt}")
+
+    result_fields = results[-1].split("\t")
+    if len(result_fields) < 5:
+        raise ValueError(f"bcftools norm unexpected results for {chrom}:{pos} {ref}>{alt}: {results[-1]}")
+
+    return {
+        "normalized_chrom": result_fields[0],
+        "normalized_pos": result_fields[1],
+        "normalized_ref": result_fields[3],
+        "normalized_alt": result_fields[4],
+    }
+
+
+@app.route("/normalize/", methods=['POST', 'GET'])
+def normalize_variant():
+    logging_prefix = datetime.now().strftime("%m/%d/%Y %H:%M:%S") + f" t{os.getpid()}"
+    verbose = True
+
+    # check params
+    params = {}
+    if request.values:
+        params.update(request.values)
+
+    if not params:
+        params.update(request.get_json(force=True, silent=True) or {})
+
+    genome_version = params.get("genome_version")
+    if not genome_version or genome_version not in FASTA_PATHS:
+        return error_response(f'"hg" param error. It should be set to {" or ".join(FASTA_PATHS)}')
+
+    for key in "chrom", "pos", "ref", "alt":
+        if not params.get(key):
+            return error_response(f'"{key}" param not specified')
+
+    chrom = params.get("chrom")
+    pos = params.get("pos")
+    ref = params.get("ref")
+    alt = params.get("alt")
+    variant_log_string = f"{chrom}:{pos} {ref}>{alt}"
+
+    user_ip = get_user_ip(request)
+    logging_prefix = datetime.now().strftime("%m/%d/%Y %H:%M:%S") + f" {user_ip} t{os.getpid()}"
+
+    print(f"{logging_prefix}: ======================", flush=True)
+    print(f"{logging_prefix}: normalize: {variant_log_string}", flush=True)
+
+    try:
+        result = run_bcftools_norm(genome_version, chrom, pos, ref, alt)
+    except Exception as e:
+        return error_response(str(e))
+
+    result.update(params)
+
+    return Response(json.dumps(result), mimetype='application/json')
+
+
 @app.route("/liftover/", methods=['POST', 'GET'])
 def run_liftover():
-    logging_prefix = datetime.now().strftime("%m/%d/%Y %H:%M:%S") + f" t{os.getpid()}"
+    user_ip = get_user_ip(request)
+    logging_prefix = datetime.now().strftime("%m/%d/%Y %H:%M:%S") + f" {user_ip} t{os.getpid()}"
     verbose = True
 
     # check params
@@ -236,12 +330,18 @@ def run_liftover():
         variant_log_string = f"{pos} {ref}>{alt}"
 
     if verbose:
-        print(f"{logging_prefix}: {request.remote_addr}: ======================", flush=True)
-        print(f"{logging_prefix}: {request.remote_addr}: {hg} liftover {format}: {chrom}:{variant_log_string}", flush=True)
+        print(f"{logging_prefix}: ======================", flush=True)
+        print(f"{logging_prefix}: {hg} liftover {format}: {chrom}:{variant_log_string}", flush=True)
 
     try:
         if format == "variant":
             result = run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=verbose)
+            try:
+                input_reference_genome = hg.split("-")[0]
+                normalized_input_variant = run_bcftools_norm(input_reference_genome, chrom, pos, ref, alt)
+                result.update(normalized_input_variant)
+            except Exception as e:
+                print(f"WARNING: unable to normalize input variant {chrom}:{pos} {ref}>{alt}: {e}")
         else:
             result = run_UCSC_liftover_tool(hg, chrom, start, end, verbose=verbose)
     except Exception as e:
