@@ -362,8 +362,8 @@
       }
 
       const pos = parseInt(m[3].replace(/,/g, ""))
-      const ref = m[4]
-      const alt = m[5]
+      const ref = m[4].toUpperCase()
+      const alt = m[5].toUpperCase()
 
       if (ref.length == alt.length) {
         variant = chrom + ":g." + pos + ref + ">" + alt
@@ -473,7 +473,7 @@
       /* "</tr><tr><td colspan='2'></td><td colspan='4' style='color:#333333'><i>Using the " + response.liftover_tool + "</i></b></td>" + */
       "</tr>" +
       "<tr><td colspan='6' style='padding-top: 20px; padding-bottom: 20px; text-align: right;'>" +
-            "Lifted over by the <i>" + response.liftover_tool + "</i></td></tr>" +
+          "Lifted over by: <i>" + response.liftover_tool + "</i></td></tr>" +
 
     "</table>"
   }
