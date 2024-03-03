@@ -1,7 +1,6 @@
 from datetime import datetime
 import json
 import os
-import pysam.bcftools
 import subprocess
 import traceback
 import tempfile
@@ -46,11 +45,9 @@ LIFTOVER_REFERENCE_PATHS = {
 }
 
 
-def error_response(error_message, source=None):
-    response_json = {"error": str(error_message)}
-    if source:
-        response_json["source"] = source
-    return Response(json.dumps(response_json), status=200, mimetype='application/json')
+def error_response(error_message):
+    print(f"ERROR: {error_message}")
+    return Response(json.dumps({"error": str(error_message)}), status=200, mimetype='application/json')
 
 
 def reverse_complement(seq):
@@ -69,7 +66,7 @@ def run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=False):
     source_fasta_path, destination_fasta_path = LIFTOVER_REFERENCE_PATHS[hg]
 
     with tempfile.NamedTemporaryFile(suffix=".vcf", mode="wt", encoding="UTF-8") as input_file, \
-            tempfile.NamedTemporaryFile(suffix=".vcf", mode="rt", encoding="UTF-8") as output_file:
+        tempfile.NamedTemporaryFile(suffix=".vcf", mode="rt", encoding="UTF-8") as output_file:
 
         #  command syntax: liftOver oldFile map.chain newFile unMapped
         if hg == "hg19-to-hg38":
@@ -189,7 +186,7 @@ def run_UCSC_liftover_tool(hg, chrom, start, end, verbose=False):
         raise ValueError(f"{hg} liftover failed for {chrom}:{start}-{end} for unknown reasons")
 
 
-def run_bcftools_norm(genome_version, chrom, pos, ref, alt):
+def run_bcftools_norm(genome_version, chrom, pos, ref, alt, verbose=False):
     if genome_version not in FASTA_PATHS:
         raise ValueError(f"Unexpected genome_version: {genome_version}")
 
@@ -206,7 +203,9 @@ def run_bcftools_norm(genome_version, chrom, pos, ref, alt):
     else:
         chrom = "chr" + chrom.replace("chr", "")
 
-    with tempfile.NamedTemporaryFile(suffix=".vcf", mode="wt", encoding="UTF-8") as input_file:
+    with tempfile.NamedTemporaryFile(suffix=".vcf", mode="wt", encoding="UTF-8") as input_file, \
+            tempfile.NamedTemporaryFile(suffix=".vcf", mode="rt", encoding="UTF-8") as output_file:
+
         input_file.write(f"""##fileformat=VCFv4.2        
 ##contig=<ID={chrom},length=100000000>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
@@ -215,14 +214,23 @@ def run_bcftools_norm(genome_version, chrom, pos, ref, alt):
         
         fasta_path = FASTA_PATHS[genome_version]
 
-        results = pysam.bcftools.norm("-f", fasta_path, input_file.name, split_lines=True)
+        #results = pysam.bcftools.norm("-f", fasta_path, input_file.name, split_lines=True)
+        command = (
+            f"cat {input_file.name} | bcftools norm -f {fasta_path} 2>&1 | grep -v total | tail -n 1 > {output_file.name}"
+        )
 
-    if len(results) == 0:
-        raise ValueError(f"bcftools norm failed for {chrom}:{pos} {ref}>{alt}")
+        subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, encoding="UTF-8")
 
-    result_fields = results[-1].split("\t")
+        last_line_of_output_file = output_file.read().strip()
+
+        # example: chr8	140300616	.	T	G	60	.	.
+
+    result_fields = last_line_of_output_file.strip().split("\t")
+    if verbose:
+        print(f"bcftools norm {chrom}:{pos} {ref}>{alt} on {genome_version} returned: {result_fields}", flush=True)
+
     if len(result_fields) < 5:
-        raise ValueError(f"bcftools norm unexpected results for {chrom}:{pos} {ref}>{alt}: {results[-1]}")
+        raise ValueError(f"bcftools norm failed for {chrom}:{pos} {ref}>{alt}: {last_line_of_output_file}")
 
     return {
         "normalized_chrom": result_fields[0],
@@ -245,9 +253,11 @@ def normalize_variant():
     if not params:
         params.update(request.get_json(force=True, silent=True) or {})
 
-    genome_version = params.get("genome_version")
+    genome_version = params.get("g")
+    if genome_version == "hg37":
+        genome_version = "hg19"
     if not genome_version or genome_version not in FASTA_PATHS:
-        return error_response(f'"hg" param error. It should be set to {" or ".join(FASTA_PATHS)}')
+        return error_response(f'"g" param error. It should be set to {" or ".join(FASTA_PATHS)}')
 
     for key in "chrom", "pos", "ref", "alt":
         if not params.get(key):
@@ -266,9 +276,9 @@ def normalize_variant():
     print(f"{logging_prefix}: normalize: {variant_log_string}", flush=True)
 
     try:
-        result = run_bcftools_norm(genome_version, chrom, pos, ref, alt)
+        result = run_bcftools_norm(genome_version, chrom, pos, ref, alt, verbose=True)
     except Exception as e:
-        return error_response(str(e))
+        return error_response(e)
 
     result.update(params)
 
@@ -338,14 +348,14 @@ def run_liftover():
             result = run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=verbose)
             try:
                 input_reference_genome = hg.split("-")[0]
-                normalized_input_variant = run_bcftools_norm(input_reference_genome, chrom, pos, ref, alt)
+                normalized_input_variant = run_bcftools_norm(input_reference_genome, chrom, pos, ref, alt, verbose=verbose)
                 result.update(normalized_input_variant)
             except Exception as e:
                 print(f"WARNING: unable to normalize input variant {chrom}:{pos} {ref}>{alt}: {e}")
         else:
             result = run_UCSC_liftover_tool(hg, chrom, start, end, verbose=verbose)
     except Exception as e:
-        return error_response(str(e))
+        return error_response(e)
 
     result.update(params)
 

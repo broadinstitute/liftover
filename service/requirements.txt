@@ -2,4 +2,3 @@ flask
 flask_cors
 flask_talisman
 gunicorn
-pysam
