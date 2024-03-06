@@ -7,35 +7,34 @@ metadata:
     run.googleapis.com/ingress: all
     run.googleapis.com/ingress-status: all
     run.googleapis.com/launch-stage: BETA
-    run.googleapis.com/operation-id: ee3ed5ea-75a2-4d0b-8763-0f2472094cac
+    run.googleapis.com/operation-id: 8d70e5b8-196b-4864-8809-e2b7c91a56dc
     serving.knative.dev/creator: weisburd@broadinstitute.org
     serving.knative.dev/lastModifier: weisburd@broadinstitute.org
   creationTimestamp: '2024-02-02T05:49:15.799596Z'
-  generation: 19
+  generation: 26
   labels:
     cloud.googleapis.com/location: us-central1
   name: liftover
   namespace: '1042618492363'
-  resourceVersion: AAYSx0egVcE
+  resourceVersion: AAYTASZBSBk
   selfLink: /apis/serving.knative.dev/v1/namespaces/1042618492363/services/liftover
   uid: c44610bb-6a61-4223-b7dd-a601b6e9c137
 spec:
   template:
     metadata:
       annotations:
-        autoscaling.knative.dev/maxScale: '8'
-        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '2'
         run.googleapis.com/client-name: gcloud
         run.googleapis.com/client-version: 466.0.0
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/startup-cpu-boost: 'false'
       labels:
-        client.knative.dev/nonce: yteietcoxh
+        client.knative.dev/nonce: krgumwrjkw
         run.googleapis.com/startupProbeType: Default
     spec:
       containerConcurrency: 3
       containers:
-      - image: us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover:latest
+      - image: us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover@sha256:37f1a19574785a6e431127eabf85b1b2ef5715fd77c6d665a116fdbe89210332
         name: liftover-1
         ports:
         - containerPort: 8080
@@ -69,20 +68,20 @@ status:
   address:
     url: https://liftover-xwkwwwxdwq-uc.a.run.app
   conditions:
-  - lastTransitionTime: '2024-03-03T20:16:09.745857Z'
+  - lastTransitionTime: '2024-03-06T17:18:37.971481Z'
     status: 'True'
     type: Ready
   - lastTransitionTime: '2024-02-02T05:49:15.917631Z'
     status: 'True'
     type: ConfigurationsReady
-  - lastTransitionTime: '2024-03-03T20:16:09.703064Z'
+  - lastTransitionTime: '2024-03-06T17:18:37.936546Z'
     status: 'True'
     type: RoutesReady
-  latestCreatedRevisionName: liftover-00019-v9h
-  latestReadyRevisionName: liftover-00019-v9h
-  observedGeneration: 19
+  latestCreatedRevisionName: liftover-00026-k4p
+  latestReadyRevisionName: liftover-00026-k4p
+  observedGeneration: 26
   traffic:
   - latestRevision: true
     percent: 100
-    revisionName: liftover-00019-v9h
+    revisionName: liftover-00026-k4p
   url: https://liftover-xwkwwwxdwq-uc.a.run.app

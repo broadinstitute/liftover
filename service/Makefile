@@ -1,22 +1,23 @@
-TAG = us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover:latest
+TAG = us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover
 GCLOUD_PROJECT=spliceai-lookup-412920
 
 all: build push update_sha deploy describe
 
 build:
-	docker build -f Dockerfile -t $(TAG) .
+	docker build -f Dockerfile -t $(TAG):latest .
 
 push:
-	docker push $(TAG)
+	docker push $(TAG):latest
 
 update_sha:
-	docker pull $(TAG) 2>&1 | grep Digest | cut -c 9- > sha256.txt
+	docker pull $(TAG):latest 2>&1 | grep Digest | cut -c 9- > sha256.txt
 
-deploy: build push
+deploy:
 	gcloud --project $(GCLOUD_PROJECT) beta run deploy liftover \
-		--image $(TAG) \
-		--max-instances 8 \
+		--image $(TAG)@$(shell cat sha256.txt) \
 		--concurrency 3 \
+ 		--max-instances 2 \
+		--service-account 1042618492363-compute@developer.gserviceaccount.com \
 		--execution-environment gen2 \
 		--region us-central1 \
 		--add-volume=name=ref,type=cloud-storage,bucket=spliceai-lookup-reference-data,readonly=true \
