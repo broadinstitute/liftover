@@ -435,6 +435,7 @@
       input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size + 1, parseInt(response.pos) + ucsc_browser_window_size)
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size + 1, parseInt(response.output_pos) + ucsc_browser_window_size)
     } else if (response.format == "interval") {
+      input_string = response.chrom + ":" + response.start + "-" + response.end
       output_string = response.output_chrom + ":" + response.output_start + "-" + response.output_end
       input_interval_size = Math.abs(parseInt(response.start) - parseInt(response.end)).toLocaleString("en-US") + " bp"
       output_interval_size = Math.abs(parseInt(response.output_end) - parseInt(response.output_start)).toLocaleString("en-US") + " bp"
