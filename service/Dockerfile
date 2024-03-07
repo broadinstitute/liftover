@@ -45,4 +45,4 @@ COPY server.py /
 
 ENV PORT=8080
 
-CMD exec gunicorn --preload --bind :$PORT --workers 3 --threads 1 --timeout 0 server:app
+CMD exec gunicorn --preload --bind :$PORT --workers 7 --timeout 0 server:app

@@ -15,8 +15,10 @@ update_sha:
 deploy:
 	gcloud --project $(GCLOUD_PROJECT) beta run deploy liftover \
 		--image $(TAG)@$(shell cat sha256.txt) \
-		--concurrency 3 \
+		--concurrency 7 \
+		--min-instances 0 \
  		--max-instances 2 \
+		--cpu 1 \
 		--service-account 1042618492363-compute@developer.gserviceaccount.com \
 		--execution-environment gen2 \
 		--region us-central1 \
