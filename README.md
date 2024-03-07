@@ -1,1 +1,1 @@
-Code for [liftover.broadinstitute.org](https://liftover.broadinstitute.org) which makes it easier to look up genomic liftover coordinates for a variant, position, or interval.
+This repo contains the front-end and back-end code for [liftover.broadinstitute.org](https://liftover.broadinstitute.org), a website that makes it easy to look up genomic liftover coordinates for variants, positions, or genomic intervals.
