@@ -17,6 +17,7 @@ deploy:
 		--image $(TAG)@$(shell cat sha256.txt) \
 		--concurrency 7 \
 		--min-instances 0 \
+		--service-min-instances 0 \
  		--max-instances 2 \
 		--cpu 1 \
 		--service-account 1042618492363-compute@developer.gserviceaccount.com \

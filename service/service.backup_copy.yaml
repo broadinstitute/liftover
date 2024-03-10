@@ -3,20 +3,20 @@ kind: Service
 metadata:
   annotations:
     run.googleapis.com/client-name: gcloud
-    run.googleapis.com/client-version: 466.0.0
+    run.googleapis.com/client-version: 467.0.0
     run.googleapis.com/ingress: all
     run.googleapis.com/ingress-status: all
     run.googleapis.com/launch-stage: BETA
-    run.googleapis.com/operation-id: 098dbbf6-9ca6-417c-a254-70ba92401716
+    run.googleapis.com/operation-id: 02ffb130-b569-4fd7-b3d5-719c68f5847f
     serving.knative.dev/creator: weisburd@broadinstitute.org
     serving.knative.dev/lastModifier: weisburd@broadinstitute.org
   creationTimestamp: '2024-02-02T05:49:15.799596Z'
-  generation: 27
+  generation: 28
   labels:
     cloud.googleapis.com/location: us-central1
   name: liftover
   namespace: '1042618492363'
-  resourceVersion: AAYTE69ucbM
+  resourceVersion: AAYTVlFL+7k
   selfLink: /apis/serving.knative.dev/v1/namespaces/1042618492363/services/liftover
   uid: c44610bb-6a61-4223-b7dd-a601b6e9c137
 spec:
@@ -25,11 +25,11 @@ spec:
       annotations:
         autoscaling.knative.dev/maxScale: '2'
         run.googleapis.com/client-name: gcloud
-        run.googleapis.com/client-version: 466.0.0
+        run.googleapis.com/client-version: 467.0.0
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/startup-cpu-boost: 'false'
       labels:
-        client.knative.dev/nonce: tjmvatnnbx
+        client.knative.dev/nonce: zdfjawakfz
         run.googleapis.com/startupProbeType: Default
     spec:
       containerConcurrency: 7
@@ -68,20 +68,20 @@ status:
   address:
     url: https://liftover-xwkwwwxdwq-uc.a.run.app
   conditions:
-  - lastTransitionTime: '2024-03-07T15:25:28.821171Z'
+  - lastTransitionTime: '2024-03-10T22:55:12.313273Z'
     status: 'True'
     type: Ready
   - lastTransitionTime: '2024-02-02T05:49:15.917631Z'
     status: 'True'
     type: ConfigurationsReady
-  - lastTransitionTime: '2024-03-07T15:25:28.773379Z'
+  - lastTransitionTime: '2024-03-10T22:55:12.267070Z'
     status: 'True'
     type: RoutesReady
-  latestCreatedRevisionName: liftover-00027-nqs
-  latestReadyRevisionName: liftover-00027-nqs
-  observedGeneration: 27
+  latestCreatedRevisionName: liftover-00028-vmj
+  latestReadyRevisionName: liftover-00028-vmj
+  observedGeneration: 28
   traffic:
   - latestRevision: true
     percent: 100
-    revisionName: liftover-00027-nqs
+    revisionName: liftover-00028-vmj
   url: https://liftover-xwkwwwxdwq-uc.a.run.app
