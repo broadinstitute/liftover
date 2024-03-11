@@ -25,6 +25,7 @@ deploy:
 		--region us-central1 \
 		--add-volume=name=ref,type=cloud-storage,bucket=spliceai-lookup-reference-data,readonly=true \
 		--add-volume-mount=volume=ref,mount-path=/ref \
+		--update-secrets=DB_PASSWORD=spliceai-lookup-db-password:1 \
 		--allow-unauthenticated
 
 test: build
