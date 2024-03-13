@@ -17,7 +17,6 @@ deploy:
 		--image $(TAG)@$(shell cat sha256.txt) \
 		--concurrency 7 \
 		--min-instances 0 \
-		--service-min-instances 0 \
  		--max-instances 2 \
 		--cpu 1 \
 		--service-account 1042618492363-compute@developer.gserviceaccount.com \
@@ -25,8 +24,9 @@ deploy:
 		--region us-central1 \
 		--add-volume=name=ref,type=cloud-storage,bucket=spliceai-lookup-reference-data,readonly=true \
 		--add-volume-mount=volume=ref,mount-path=/ref \
-		--update-secrets=DB_PASSWORD=spliceai-lookup-db-password:1 \
 		--allow-unauthenticated
+
+#		--update-secrets=DB_PASSWORD=spliceai-lookup-db-password:1 \
 
 test: build
 	docker run -p 8080:8080 $(TAG)
