@@ -11,7 +11,7 @@ RUN apt update && apt-get install --no-install-recommends -y \
     liblzma-dev \
     zlib1g-dev
 
-ENV BCFTOOLS_VERSION="1.19"
+ENV BCFTOOLS_VERSION="1.20"
 RUN wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2 \
     && tar xjf bcftools-${BCFTOOLS_VERSION}.tar.bz2 \
     && rm bcftools-${BCFTOOLS_VERSION}.tar.bz2 \
