@@ -413,7 +413,7 @@
     const input_genome = hg_split[0]
     const output_genome = hg_split[1]
 
-    const ucsc_browser_window_size = 2; //window size (in base pairs) around variant or positions
+    const ucsc_browser_window_size = 20; //window size (in base pairs) around variant or positions
     let input_string, output_string, input_url, output_url, input_interval_size, output_interval_size
     if (response.format == "variant") {
       if (response.normalized_ref && response.normalized_alt && response.normalized_ref.length != response.normalized_alt.length && (
