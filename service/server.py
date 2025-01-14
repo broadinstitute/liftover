@@ -33,8 +33,10 @@ LIFTOVER_EXAMPLE = f"/liftover/?hg=hg19-to-hg38&format=interval&chrom=chr8&start
 CHAIN_FILE_PATHS = {
     "hg19-to-hg38": "/hg19ToHg38.over.chain.gz",
     "hg38-to-hg19": "/hg38ToHg19.over.chain.gz",
-    "hg38-to-t2t": "/hg38ToHs1.over.chain.gz", # replaced hg38-chm13v2.over.chain.gz based on advice from Giulio Genovese
-    "t2t-to-hg38": "/hs1ToHg38.over.chain.gz", # replaced chm13v2-hg38.over.chain.gz based on advice from Giulio Genovese
+    #"hg38-to-t2t": "/hg38ToHs1.over.chain.gz", # replaced hg38-chm13v2.over.chain.gz based on advice from Giulio Genovese
+    #"t2t-to-hg38": "/hs1ToHg38.over.chain.gz", # replaced chm13v2-hg38.over.chain.gz based on advice from Giulio Genovese
+    "hg38-to-t2t": "/grch38-chm13v2.chain.gz",  # 1/14/2025 - reverted to original chain files from https://github.com/marbl/CHM13?tab=readme-ov-file#liftover-resources due to reported github issues
+    "t2t-to-hg38": "/chm13v2-grch38.chain.gz",  # 1/14-2025 - "   "   " 
 }
 
 LIFTOVER_REFERENCE_PATHS = {

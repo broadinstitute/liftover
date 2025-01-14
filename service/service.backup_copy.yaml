@@ -3,20 +3,20 @@ kind: Service
 metadata:
   annotations:
     run.googleapis.com/client-name: gcloud
-    run.googleapis.com/client-version: 469.0.0
+    run.googleapis.com/client-version: 498.0.0
     run.googleapis.com/ingress: all
     run.googleapis.com/ingress-status: all
-    run.googleapis.com/launch-stage: BETA
-    run.googleapis.com/operation-id: e03bdd79-ae2f-4b57-8976-adafd2de086c
+    run.googleapis.com/operation-id: 3e450743-e624-477e-8003-6dde7135925c
+    run.googleapis.com/urls: '["https://liftover-1042618492363.us-central1.run.app","https://liftover-xwkwwwxdwq-uc.a.run.app"]'
     serving.knative.dev/creator: weisburd@broadinstitute.org
     serving.knative.dev/lastModifier: weisburd@broadinstitute.org
   creationTimestamp: '2024-02-02T05:49:15.799596Z'
-  generation: 37
+  generation: 38
   labels:
     cloud.googleapis.com/location: us-central1
   name: liftover
   namespace: '1042618492363'
-  resourceVersion: AAYUkHiGORE
+  resourceVersion: AAYrqrcfa20
   selfLink: /apis/serving.knative.dev/v1/namespaces/1042618492363/services/liftover
   uid: c44610bb-6a61-4223-b7dd-a601b6e9c137
 spec:
@@ -25,16 +25,16 @@ spec:
       annotations:
         autoscaling.knative.dev/maxScale: '2'
         run.googleapis.com/client-name: gcloud
-        run.googleapis.com/client-version: 469.0.0
+        run.googleapis.com/client-version: 498.0.0
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/startup-cpu-boost: 'false'
       labels:
-        client.knative.dev/nonce: xeslityfmj
+        client.knative.dev/nonce: lxneiyqyyv
         run.googleapis.com/startupProbeType: Default
     spec:
       containerConcurrency: 7
       containers:
-      - image: us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover@sha256:32b9161534a646f8293b6b7c0243243d7b16eb6ed96a12533096633c5f224e65
+      - image: us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover@sha256:18772e315596461ac2de24484272ee8f8968b61e747ac55a11bf32b48d185ae5
         name: liftover-1
         ports:
         - containerPort: 8080
@@ -68,20 +68,20 @@ status:
   address:
     url: https://liftover-xwkwwwxdwq-uc.a.run.app
   conditions:
-  - lastTransitionTime: '2024-03-26T13:43:10.172433Z'
+  - lastTransitionTime: '2025-01-14T13:41:16.988269Z'
     status: 'True'
     type: Ready
-  - lastTransitionTime: '2024-02-02T05:49:15.917631Z'
+  - lastTransitionTime: '2025-01-14T13:41:15.414644Z'
     status: 'True'
     type: ConfigurationsReady
-  - lastTransitionTime: '2024-03-26T13:43:10.125395Z'
+  - lastTransitionTime: '2025-01-14T13:41:16.884145Z'
     status: 'True'
     type: RoutesReady
-  latestCreatedRevisionName: liftover-00037-trh
-  latestReadyRevisionName: liftover-00037-trh
-  observedGeneration: 37
+  latestCreatedRevisionName: liftover-00038-7wh
+  latestReadyRevisionName: liftover-00038-7wh
+  observedGeneration: 38
   traffic:
   - latestRevision: true
     percent: 100
-    revisionName: liftover-00037-trh
+    revisionName: liftover-00038-7wh
   url: https://liftover-xwkwwwxdwq-uc.a.run.app
