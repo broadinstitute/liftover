@@ -15,7 +15,7 @@ app = Flask(__name__)
 
 CORS(app)
 
-DEBUG = True  #if socket.gethostname() == "spliceai-lookup" else True
+DEBUG = os.environ.get('DEBUG', '1').lower() in ['true', '1', 't']
 if not DEBUG:
     Talisman(app)
 
@@ -370,4 +370,6 @@ def run_liftover():
 def catch_all(path):
     return "liftover api"
 
-app.run(debug=DEBUG, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+
+if __name__ == '__main__':
+    app.run(debug=DEBUG, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
