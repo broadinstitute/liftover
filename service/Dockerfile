@@ -47,5 +47,6 @@ RUN python3 -m pip install --upgrade -r /requirements.txt
 COPY server.py /
 
 ENV PORT=8080
+ENV WORKERS=7
 
-CMD exec gunicorn --preload --bind :$PORT --workers 7 --timeout 0 server:app
+CMD exec gunicorn --preload --bind :$PORT --workers $WORKERS --timeout 0 server:app
