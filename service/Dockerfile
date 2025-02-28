@@ -1,4 +1,4 @@
-FROM python:3.9-slim-bullseye
+FROM python:3.9-slim-bookworm
 
 RUN apt update && apt-get install --no-install-recommends -y \
     ca-certificates \
