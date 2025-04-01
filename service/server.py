@@ -72,10 +72,7 @@ def run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=False):
         tempfile.NamedTemporaryFile(suffix=".vcf", mode="rt", encoding="UTF-8") as output_file:
 
         #  command syntax: liftOver oldFile map.chain newFile unMapped
-        if hg == "hg19-to-hg38":
-            chrom = chrom.replace("chr", "")
-        else:
-            chrom = "chr" + chrom.replace("chr", "")
+        chrom = "chr" + chrom.replace("chr", "")
 
         input_file.write(f"""##fileformat=VCFv4.2
 ##contig=<ID={chrom},length=100000000>
