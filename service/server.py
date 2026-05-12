@@ -140,11 +140,12 @@ def run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=False):
         # if bcftools liftover failed, fall back on running UCSC liftover
         chrom = "chr" + chrom.replace("chr", "")
         result = run_UCSC_liftover_tool(hg, chrom, int(pos)-1, pos, verbose=False)
-        result["output_ref"] = ref
-        result["output_alt"] = alt
-        #if result["output_strand"] == "-":
-        #    result["output_ref"] = reverse_complement(result["output_ref"])
-        #    result["output_alt"] = reverse_complement(result["output_alt"])
+        if result.get("output_strand") == "-":
+            result["output_ref"] = reverse_complement(ref)
+            result["output_alt"] = reverse_complement(alt)
+        else:
+            result["output_ref"] = ref
+            result["output_alt"] = alt
         return result
 
 
@@ -297,9 +298,7 @@ def normalize_variant():
     except Exception as e:
         return error_response(e)
 
-    result.update(params)
-
-    return Response(json.dumps(result), mimetype='application/json')
+    return Response(json.dumps({**params, **result}), mimetype='application/json')
 
 
 @app.route("/liftover/", methods=['POST', 'GET'])
@@ -374,9 +373,7 @@ def run_liftover():
     except Exception as e:
         return error_response(e)
 
-    result.update(params)
-
-    return Response(json.dumps(result), mimetype='application/json')
+    return Response(json.dumps({**params, **result}), mimetype='application/json')
 
 
 @app.route('/', strict_slashes=False, defaults={'path': ''})

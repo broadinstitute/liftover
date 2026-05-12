@@ -580,14 +580,12 @@
             const ref = m[4]
             const alt = m[5]
 
-            console.log("Resolving")
             request.resolve([{
               "vcf_string": `${chrom}-${pos}-${ref}-${alt}`,
             }]);
-
-            console.log("Rejecting")
+          } else {
+            request.reject({ "responseText": `Could not parse variant: ${input}` })
           }
-          request.reject({ "responseText": `Could not parse variant: ${input}` })
 
         }
 
@@ -718,7 +716,7 @@
         } else {
           console.warn(errorText)
         }
-        $("#error-box").html(errorText)
+        $("#error-box").text(errorText)
         $("#error-box").show()
       }).always(() => {
         $("#submit-button").removeClass(["loading", "disabled"]);
