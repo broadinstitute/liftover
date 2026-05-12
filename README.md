@@ -1,1 +1,1 @@
-This repo contains all front-end and back-end code for [liftover.broadinstitute.org](https://liftover.broadinstitute.org), a website that makes it easy to look up genomic liftover coordinates for variants, positions, or genomic intervals.
+This repo contains all front-end and back-end code for [liftover.broadinstitute.org](https://liftover.broadinstitute.org), a website that provides a user-friendly interface for genomic liftover of a variant, position, or interval to/from the hg19, hg38, and chm13 references.
