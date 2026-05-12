@@ -184,7 +184,7 @@
             To post issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">liftover/issues</a><br />
             <br />
             <b>May 12, 2026</b><br />
-            - For variant liftover, now annotate the output with a "REF/ALT swapped" or "strand flipped (alleles reverse-complemented)" indicator when the <a href="https://github.com/freeseek/score#liftover-vcfs" target="_blank">bcftools plugin</a> reports a SWAP or FLIP. Addresses <a href="https://github.com/broadinstitute/liftover/issues/26" target="_blank">issue #26</a>.<br />
+            - For variant liftover, the API response now includes separate <code>output_ref_alt_swap</code> and <code>output_reverse_complemented</code> fields when the <a href="https://github.com/freeseek/score#liftover-vcfs" target="_blank">bcftools plugin</a> reports a SWAP or FLIP. Addresses <a href="https://github.com/broadinstitute/liftover/issues/26" target="_blank">issue #26</a>.<br />
             - Updated list of Related web tools<br />
             <br />
             <a id="more-details3-button" href="#"
@@ -436,16 +436,6 @@
       }
 
       output_string = response.output_chrom + ":" + response.output_pos + " " + response.output_ref + ">" + response.output_alt
-      const liftover_annotations = []
-      if (response.output_ref_alt_swap !== undefined && response.output_ref_alt_swap !== null) {
-        liftover_annotations.push("REF/ALT swapped")
-      }
-      if (response.output_reverse_complemented) {
-        liftover_annotations.push("strand flipped (alleles reverse-complemented)")
-      }
-      if (liftover_annotations.length) {
-        output_string += " &nbsp; (" + liftover_annotations.join(", ") + ")"
-      }
       input_interval_size = output_interval_size = ""
       input_url =  getUCSCBrowserUrl(input_genome, response.chrom, parseInt(response.pos) - ucsc_browser_window_size, parseInt(response.pos) + response.ref.length + ucsc_browser_window_size)
       output_url =  getUCSCBrowserUrl(output_genome, response.output_chrom, parseInt(response.output_pos) - ucsc_browser_window_size, parseInt(response.output_pos) + response.output_ref.length + ucsc_browser_window_size)
