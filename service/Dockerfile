@@ -18,9 +18,9 @@ RUN wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSI
     && cd bcftools-${BCFTOOLS_VERSION} \
     && ./configure \
     && cd plugins \
-    && wget https://software.broadinstitute.org/software/score/score_${BCFTOOLS_VERSION}-dev.zip \
-    && unzip score_${BCFTOOLS_VERSION}-dev.zip \
-    && rm score_${BCFTOOLS_VERSION}-dev.zip \
+    && wget https://software.broadinstitute.org/software/score/score_${BCFTOOLS_VERSION}-20240927.zip \
+    && unzip score_${BCFTOOLS_VERSION}-20240927.zip \
+    && rm score_${BCFTOOLS_VERSION}-20240927.zip \
     && cd .. \
     && make \
     && make install \
