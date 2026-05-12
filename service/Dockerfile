@@ -48,5 +48,6 @@ COPY server.py /
 
 ENV PORT=8080
 ENV WORKERS=7
+ENV RUNNING_ON_GOOGLE_CLOUD_RUN=1
 
 CMD exec gunicorn --preload --bind :$PORT --workers $WORKERS --timeout 0 server:app

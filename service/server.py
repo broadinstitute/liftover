@@ -15,9 +15,12 @@ app = Flask(__name__)
 
 CORS(app)
 
-DEBUG = os.environ.get('DEBUG', '1').lower() in ['true', '1', 't']
-if not DEBUG:
-    Talisman(app)
+# On Cloud Run, disable Werkzeug's debug PIN / interactive traceback; keep it on for local dev.
+DEBUG = not os.environ.get('RUNNING_ON_GOOGLE_CLOUD_RUN')
+
+# force_https=False because Cloud Run's load balancer terminates TLS and forwards plain HTTP to
+# the container with X-Forwarded-Proto: https — an app-level redirect would loop with the LB.
+Talisman(app, force_https=False)
 
 FASTA_PATHS = {
     "hg19": "/ref/hg19.fa",
@@ -54,8 +57,10 @@ def error_response(error_message):
 
 
 def reverse_complement(seq):
-    reverse_complement_map = dict(zip("ACGTN", "TGCAN"))
-    return "".join([reverse_complement_map[n] for n in seq[::-1]])
+    # split on "," so multi-allelic alts (e.g. "G,T" from rsIDs with collocated variants) are
+    # reverse-complemented per-allele, preserving allele order.
+    table = str.maketrans("ACGTNacgtn", "TGCANtgcan")
+    return ",".join(allele.translate(table)[::-1] for allele in seq.split(","))
 
 
 def get_user_ip(request):
