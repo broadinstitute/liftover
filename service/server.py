@@ -100,6 +100,22 @@ def run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=False):
             if len(result_fields) > 4:
                 result_fields[1] = int(result_fields[1])
 
+                # bcftools liftover plugin annotates the INFO column with:
+                #   FLIP (Flag) — alleles were reverse-complemented (strand flip)
+                #   SWAP=N (Integer) — REF/ALT swap; N is which alt became the ref (-1 = new ref from the source-ref allele)
+                # See https://github.com/freeseek/score/blob/master/liftover.c
+                info_field = result_fields[7] if len(result_fields) > 7 else ""
+                info_tags = set(info_field.split(";")) if info_field and info_field != "." else set()
+                output_reverse_complemented = "FLIP" in info_tags
+                output_ref_alt_swap = None
+                for tag in info_tags:
+                    if tag.startswith("SWAP="):
+                        try:
+                            output_ref_alt_swap = int(tag.split("=", 1)[1])
+                        except ValueError:
+                            pass
+                        break
+
                 return {
                     "hg": hg,
                     "chrom": chrom,
@@ -109,8 +125,9 @@ def run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=False):
                     "output_pos": result_fields[1],
                     "output_ref": result_fields[3],
                     "output_alt": result_fields[4],
+                    "output_reverse_complemented": output_reverse_complemented,
+                    "output_ref_alt_swap": output_ref_alt_swap,
                     "liftover_tool": BCFTOOLS_LIFTOVER_TOOL,
-                    #"output_strand": "-" if "SWAP=-1" in results else "+",
                 }
 
         except Exception as e:

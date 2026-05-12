@@ -38,8 +38,8 @@ COPY hs1ToHg38.over.chain.gz /
 COPY hg19ToHg38.over.chain.gz /
 COPY hg38ToHg19.over.chain.gz /
 # downloaded from https://github.com/marbl/CHM13?tab=readme-ov-file#liftover-resources
-COPY grch38-chm13v2.chain.gz /
-COPY chm13v2-grch38.chain.gz /
+#COPY grch38-chm13v2.chain.gz /
+#COPY chm13v2-grch38.chain.gz /
 
 COPY requirements.txt /
 RUN python3 -m pip install --upgrade -r /requirements.txt
