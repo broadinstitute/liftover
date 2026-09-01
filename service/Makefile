@@ -1,7 +1,7 @@
 TAG = us-central1-docker.pkg.dev/spliceai-lookup-412920/docker/liftover
 GCLOUD_PROJECT=spliceai-lookup-412920
 
-all: build push update_sha deploy describe
+all: build push update_sha deploy describe cleanup
 
 build:
 	docker build -f Dockerfile -t $(TAG):latest .
@@ -27,6 +27,14 @@ deploy:
 		--allow-unauthenticated
 
 #		--update-secrets=DB_PASSWORD=spliceai-lookup-db-password:1 \
+
+# Delete the images this deploy superseded, so the registry repo stops growing by one image per
+# deploy. Runs after deploy, so the image just pushed is among the newest ones kept, and the
+# leading "-" lets make carry on if it fails, since a cleanup problem shouldn't fail a deploy
+# that already worked. cleanup_old_images.py keeps every image Cloud Run is serving whatever its
+# age, so this cannot delete what the live revision is running.
+cleanup:
+	-python3 cleanup_old_images.py --package liftover --keep 3
 
 test: build
 	docker run -p 8080:8080 $(TAG)
