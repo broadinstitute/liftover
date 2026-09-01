@@ -340,6 +340,14 @@ def run_liftover():
                 return error_response(f'"{key}" param not specified')
         start = params.get("start")
         end = params.get("end")
+        # liftOver exits 255 on a BED line whose coordinates aren't integers or whose end
+        # precedes its start, and that reaches the log as a traceback rather than as something
+        # the caller can act on. A digit dropped from the end coordinate is the usual cause.
+        try:
+            if int(end) < int(start):
+                return error_response(f'"end" ({end}) must not be less than "start" ({start})')
+        except ValueError:
+            return error_response(f'"start" and "end" params must be integers, not "{start}" and "{end}"')
         variant_log_string = f"{start}-{end}"
 
     elif format == "position":
