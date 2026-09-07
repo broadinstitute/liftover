@@ -1,9 +1,11 @@
 from datetime import datetime
+import fcntl
 import json
 import os
 import subprocess
 import traceback
 import tempfile
+import time
 
 # flask imports
 from flask import Flask, request, Response, send_from_directory
@@ -51,6 +53,80 @@ LIFTOVER_REFERENCE_PATHS = {
 }
 
 
+def _env_flag(name, default=False):
+    """Parse a boolean environment variable.
+
+    Treats only 1/true/yes/on (case-insensitive) as true and 0/false/no/off/"" as false, so
+    NAME=0 reads as false instead of the way bool(os.environ.get(name)) would make any
+    non-empty string truthy. Returns `default` when the variable is unset.
+    """
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_int(name, default):
+    """Parse an integer environment variable, falling back to `default` if unset or unparsable."""
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        print(f"WARNING: {name}={value!r} is not an integer; using {default}", flush=True)
+        return default
+
+
+# Per-IP rate limiting. One client once sent 968,609 /liftover/ requests over 20 hours
+# (~800/minute). Nothing here throttled it: the service simply ran out of capacity (at most 2
+# instances x 7 concurrent requests), and Cloud Run then rejected the overflow at the front
+# door, which rejects every caller equally: other users saw an 81% error rate for those
+# 20 hours, against a 5% baseline.
+#
+# The default limit is sized from 21 days of production traffic. Excluding security scanners,
+# the busiest legitimate IP made 317 requests in 10 minutes, the 99.9th percentile was 74 and
+# the 99th was 19, so 300 per 10 minutes throttles roughly 1 IP in 3,760. Against that flood it
+# allows 300 x 120 windows = 36,000 requests per instance over the same 20 hours, or 72,000
+# service-wide across the two instances (see the per-instance note below), i.e. about 7% of the
+# 968,609 that got through.
+RATE_LIMIT_MAX_REQUESTS = _env_int("RATE_LIMIT_MAX_REQUESTS", 300)
+RATE_LIMIT_WINDOW_SECONDS = _env_int("RATE_LIMIT_WINDOW_SECONDS", 600)
+DISABLE_RATE_LIMIT = _env_flag("DISABLE_RATE_LIMIT")
+
+# Comma-separated list of IPs rejected outright, using the same env var name as the
+# SpliceAI-lookup scoring services so both are operated the same way.
+BLOCKED_IPS = frozenset(ip.strip() for ip in os.environ.get("BLOCKED_IPS", "").split(",") if ip.strip())
+
+# The counters live in a file rather than in module state because this service runs gunicorn
+# with --preload and 7 workers: module state is copied into each worker at fork, so a
+# per-process counter would give one IP 7 independent budgets on every instance. One flock'd
+# file gives every worker on an instance a single shared budget. Instances still do not share
+# state, so with --max-instances 2 the effective service-wide ceiling is twice the limit below.
+RATE_LIMIT_STATE_PATH = os.environ.get("RATE_LIMIT_STATE_PATH", "/tmp/liftover_rate_limit_state.json")
+
+# Cap on how many IPs are tracked at once, so the state file cannot grow without bound during a
+# burst from many addresses. Past the cap the lowest counts are dropped first, so the callers
+# closest to their limit keep their counters and the ones handed a fresh budget are those that
+# had barely used the old one.
+RATE_LIMIT_MAX_TRACKED_IPS = 10000
+
+# Endpoints worth protecting: both shell out to liftOver / bcftools. The catch-all route
+# returns a constant string, so it is left unlimited.
+RATE_LIMITED_ENDPOINTS = frozenset({"run_liftover", "normalize_variant"})
+
+RATE_LIMIT_ERROR_MESSAGE = (
+    "Rate limit exceeded. This server only supports interactive use. To convert large numbers "
+    "of variants or intervals, please run the UCSC liftOver tool or the bcftools liftover "
+    "plugin locally. Contact us at https://github.com/broadinstitute/liftover/issues if you "
+    "have any questions."
+)
+
+print(f"Rate limit: {RATE_LIMIT_MAX_REQUESTS} requests per {RATE_LIMIT_WINDOW_SECONDS}s per IP"
+      f"{' (DISABLED by DISABLE_RATE_LIMIT)' if DISABLE_RATE_LIMIT else ''}"
+      f"{f', {len(BLOCKED_IPS)} blocked IPs' if BLOCKED_IPS else ''}", flush=True)
+
+
 def error_response(error_message):
     print(f"ERROR: {error_message}")
     return Response(json.dumps({"error": str(error_message)}), status=200, mimetype='application/json')
@@ -64,7 +140,159 @@ def reverse_complement(seq):
 
 
 def get_user_ip(request):
-    return request.environ.get("HTTP_X_FORWARDED_FOR")
+    """Return the client IP that Cloud Run's load balancer verified.
+
+    On Cloud Run the X-Forwarded-For header is "<client-supplied>..., <verified-client>", and
+    only that final entry is appended by the load balancer. Returning the whole header, or its
+    first entry, would let a caller prepend anything to claim a fresh rate-limit budget on every
+    request, or to get an innocent IP throttled and logged as the source of a flood. Returns
+    None when the header is absent, which off Cloud Run means local development.
+    """
+    xff = request.environ.get("HTTP_X_FORWARDED_FOR", "")
+    if not xff:
+        return None
+    return xff.rsplit(",", 1)[-1].strip() or None
+
+
+def _load_rate_limit_state(state_file):
+    """Read the JSON counter file, returning {} when it is empty, corrupt, or malformed.
+
+    Entries that are not a [window_start, count] pair of numbers are dropped rather than
+    allowed to raise later, since a single bad entry would otherwise disable the limiter for
+    as long as the file survives.
+    """
+    state_file.seek(0)
+    raw = state_file.read()
+    if not raw.strip():
+        return {}
+    try:
+        state = json.loads(raw)
+    except ValueError:
+        print("WARNING: rate limit state file was not valid JSON; starting over", flush=True)
+        return {}
+    if not isinstance(state, dict):
+        return {}
+    return {
+        ip: window for ip, window in state.items()
+        if isinstance(window, list) and len(window) == 2
+        and all(isinstance(value, (int, float)) for value in window)
+    }
+
+
+def exceeds_rate_limit(user_ip, now=None, state_path=None):
+    """Count one request from `user_ip` and return True if it should be rejected.
+
+    Uses a fixed window: the first request from an IP opens a window of
+    RATE_LIMIT_WINDOW_SECONDS, and once RATE_LIMIT_MAX_REQUESTS requests land inside it every
+    further request is rejected until that window expires. A client straddling a window
+    boundary can therefore briefly burst to twice the limit, which is not worth extra state to
+    prevent: the goal is to stop one caller from consuming the whole service, not to meter
+    exactly.
+
+    Rejected requests are not counted, so an IP's counter stops at the limit instead of climbing
+    for as long as the client keeps retrying. All workers on this instance share the one state
+    file, serialized with flock.
+    """
+    if now is None:
+        now = time.time()
+    if state_path is None:
+        state_path = RATE_LIMIT_STATE_PATH
+
+    fd = os.open(state_path, os.O_RDWR | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "r+", encoding="UTF-8") as state_file:
+        fcntl.flock(state_file, fcntl.LOCK_EX)
+        try:
+            # Expired windows are dropped on every pass, both so those IPs start fresh and so
+            # the file does not accumulate an entry for every IP ever seen.
+            state = {
+                ip: window for ip, window in _load_rate_limit_state(state_file).items()
+                if now - window[0] < RATE_LIMIT_WINDOW_SECONDS
+            }
+
+            window_start, count = state.get(user_ip, (now, 0))
+            rejected = count >= RATE_LIMIT_MAX_REQUESTS
+            if not rejected:
+                state[user_ip] = [window_start, count + 1]
+
+            if len(state) > RATE_LIMIT_MAX_TRACKED_IPS:
+                # Keep the highest counts, breaking ties toward the most recently opened
+                # window. Evicting an entry hands that IP a fresh budget, so the entries that
+                # must survive are the ones actually withholding one; dropping a count-of-1
+                # entry costs a single request of slack. Sorting on window_start alone would
+                # do the opposite, since a sustained flooder's window_start is fixed at the
+                # start of its flood and therefore ages into the first-evicted bucket.
+                state = dict(sorted(state.items(), key=lambda item: (item[1][1], item[1][0]),
+                                    reverse=True)[:RATE_LIMIT_MAX_TRACKED_IPS])
+
+            state_file.seek(0)
+            state_file.truncate()
+            json.dump(state, state_file)
+            state_file.flush()
+        finally:
+            fcntl.flock(state_file, fcntl.LOCK_UN)
+
+    return rejected
+
+
+def rate_limit_response():
+    """429 whose JSON body matches the {"error": ...} shape the web UI already parses.
+
+    Unlike error_response, which answers 200 for validation errors and is left that way for
+    backward compatibility, this deliberately uses a real 429: a client told everything is fine
+    has no reason to slow down, and Cloud Run already returns 429 when this service is
+    saturated, so callers that handle it already exist. Retry-After is the full window length,
+    which over-estimates the wait for a caller whose window is nearly over but never
+    under-estimates it.
+    """
+    return Response(
+        json.dumps({"error": RATE_LIMIT_ERROR_MESSAGE}),
+        status=429,
+        mimetype='application/json',
+        headers=[("Retry-After", str(RATE_LIMIT_WINDOW_SECONDS))],
+    )
+
+
+@app.before_request
+def enforce_rate_limit():
+    """Reject blocked and over-limit callers before any liftover work happens.
+
+    Routing has already run by the time before_request handlers fire, so request.endpoint names
+    the view that would handle this request and only the two endpoints that shell out to
+    external tools are limited. Returning None lets the request proceed normally.
+    """
+    if request.endpoint not in RATE_LIMITED_ENDPOINTS:
+        return None
+
+    # A CORS preflight does no liftover work and is issued by the browser, not the caller, so
+    # charging it against the budget would halve what a cross-origin client gets.
+    if request.method == "OPTIONS":
+        return None
+
+    user_ip = get_user_ip(request)
+    if user_ip is None:
+        # No load-balancer-verified client IP, which happens only off Cloud Run.
+        return None
+
+    if user_ip in BLOCKED_IPS:
+        print(f"RATE LIMIT: rejecting blocked ip {user_ip}", flush=True)
+        return rate_limit_response()
+
+    if DISABLE_RATE_LIMIT:
+        return None
+
+    try:
+        if exceeds_rate_limit(user_ip):
+            print(f"RATE LIMIT: {user_ip} exceeded {RATE_LIMIT_MAX_REQUESTS} requests per "
+                  f"{RATE_LIMIT_WINDOW_SECONDS}s", flush=True)
+            return rate_limit_response()
+    except Exception as e:
+        # Fail open so a full disk or a permissions problem cannot take the service down, but
+        # print loudly: a limiter that is silently off is worse than one that is visibly off.
+        print(f"SECURITY: rate-limit check failed (failing open): {type(e).__name__}: {e}",
+              flush=True)
+        traceback.print_exc()
+
+    return None
 
 
 def run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=False):
