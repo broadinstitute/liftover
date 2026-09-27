@@ -58,6 +58,13 @@
       position: static;
     }
 
+    /* Red border on the search box when its value was rejected at submit time. An id selector so
+       it also outranks Semantic UI's `.ui.input>input:focus` border color, which would otherwise
+       take over while the box still has focus after the Submit click. */
+    #search-box.invalid {
+      border-color: #db2828;
+    }
+
     @media screen and (max-width: 1400px) {
       .results-div {
         width: 85vw;
@@ -336,6 +343,11 @@
   //const LIFTOVER_API_URL = "https://spliceailookup-api.broadinstitute.org/liftover/"
   const LIFTOVER_API_URL = "https://liftover-xwkwwwxdwq-uc.a.run.app/liftover/"
 
+  // No position, variant, or interval this page accepts comes anywhere near this long. Anything
+  // longer is a paste gone wrong, and refusing it up front beats forwarding it to Ensembl, whose
+  // error message echoes the whole input back twice.
+  const MAX_INPUT_LENGTH = 1000
+
   const parseInterval = (input) => {
     const m = input.match(INTERVAL_RE)
     if (m) {
@@ -516,7 +528,40 @@
 
     $("#submit-button").click(() => {
       const input = $("#search-box").val().trim()
+
+      // Input rejected before anything is looked up: outline the box in red and say why in
+      // #error-box, which sits right under the form. A resubmit is the only thing that clears
+      // them: either the value is still bad and gets flagged again, or it was fixed and the
+      // search goes ahead. The previous results stay on screen either way. .text() because
+      // some messages quote the input, which must render as text, not markup.
+      $("#search-box").removeClass("invalid")
+      $("#error-box").hide().text("")
+      const rejectInput = (message) => {
+        $("#search-box").addClass("invalid")
+        $("#error-box").text(message).show()
+      }
+
       if (!input) {
+        rejectInput("Enter a position, variant, or interval.")
+        return
+      }
+      if (input.length > MAX_INPUT_LENGTH) {
+        rejectInput(`Input is ${input.length.toLocaleString()} characters, which is more than the `
+          + `${MAX_INPUT_LENGTH.toLocaleString()} characters a position, variant, or interval can need.`)
+        return
+      }
+      // Every accepted notation has at least one letter or digit, so an input with neither (a row
+      // of dashes, dots, etc.) can't be one. Sending it on anyway would reach Ensembl, whose answer
+      // for such an input is "Skipped 1 empty line from line 1", which nobody can act on.
+      if (!/[A-Za-z0-9]/.test(input)) {
+        rejectInput(`"${input}" is not a position, variant, or interval.`)
+        return
+      }
+      // With REF and ALT the same there is no variant to lift over, only a position.
+      const refAltMatch = input.match(VARIANT_RE)
+      if (refAltMatch && refAltMatch[4].toUpperCase() === refAltMatch[5].toUpperCase()) {
+        rejectInput(`REF and ALT are the same. To lift over the position itself, search for `
+          + `"chr${refAltMatch[2].toUpperCase()}-${refAltMatch[3].replace(/,/g, "")}" instead.`)
         return
       }
 
@@ -535,7 +580,6 @@
         return
       }
 
-      $("#error-box").hide()
       $("#response-box").hide()
 
       $("#submit-button").addClass(["loading", "disabled"])
