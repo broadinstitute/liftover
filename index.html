@@ -582,6 +582,11 @@
 
       $("#response-box").hide()
 
+      // Collapse the [show older updates] panel so the results of the new search
+      // aren't pushed down by a long list of old release notes
+      $("#more-details3").hide()
+      $("#more-details3-button").show()
+
       $("#submit-button").addClass(["loading", "disabled"])
 
       let promise;
