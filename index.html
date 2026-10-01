@@ -104,19 +104,27 @@
                 <b>Input formats</b>:
                 <div id="input-formats-short">
                   <div style="padding: 10px 15px">
-                    chr8:141310715 <br />
-                    chr8:141310715 T>G <br />
-                    NM_001089.3(ABCA3):c.875A>T (p.Glu292Val) <br />
-                    chr8:141310715-141310720 <br />
+                    <a class="example-input" href="#input=chr8%3A141310715&amp;hg=hg19-to-hg38">chr8:141310715</a> <br />
+                    <a class="example-input" href="#input=chr8%3A141310715%20T%3EG&amp;hg=hg19-to-hg38">chr8:141310715 T>G</a> <br />
+                    <a class="example-input" href="#input=NM_001089.3(ABCA3)%3Ac.875A%3ET%20(p.Glu292Val)&amp;hg=hg19-to-hg38">NM_001089.3(ABCA3):c.875A>T (p.Glu292Val)</a> <br />
+                    <a class="example-input" href="#input=chr8%3A141310715-141310720&amp;hg=hg19-to-hg38">chr8:141310715-141310720</a> <br />
                   </div>
                   <a href="#" onclick="$('#input-formats-long').show();$('#input-formats-short').hide();">more formats...</a><br />
                   <br />
                 </div>
                 <div id="input-formats-long" style="display: none">
                   <ul>
-                    <li><b>Positions:</b><br />chr8:141310715<br />chr8-141310715<br />chr8 &nbsp; 141310715<br /></li>
-                    <li><b>Variants:</b><br />chr8:141310715 T>G<br />chr8-141310715-T-G<br />NM_001089.3(ABCA3):c.875A>T (p.Glu292Val)</li>
-                    <li><b>Intervals:</b><br />chr8:141310715-141310720<br />chr8 &nbsp; 141310715 &nbsp; 141310720</li>
+                    <li><b>Positions:</b><br />
+                      <a class="example-input" href="#input=chr8%3A141310715&amp;hg=hg19-to-hg38">chr8:141310715</a><br />
+                      <a class="example-input" href="#input=chr8-141310715&amp;hg=hg19-to-hg38">chr8-141310715</a><br />
+                      <a class="example-input" href="#input=chr8%20%20%20141310715&amp;hg=hg19-to-hg38">chr8 &nbsp; 141310715</a><br /></li>
+                    <li><b>Variants:</b><br />
+                      <a class="example-input" href="#input=chr8%3A141310715%20T%3EG&amp;hg=hg19-to-hg38">chr8:141310715 T>G</a><br />
+                      <a class="example-input" href="#input=chr8-141310715-T-G&amp;hg=hg19-to-hg38">chr8-141310715-T-G</a><br />
+                      <a class="example-input" href="#input=NM_001089.3(ABCA3)%3Ac.875A%3ET%20(p.Glu292Val)&amp;hg=hg19-to-hg38">NM_001089.3(ABCA3):c.875A>T (p.Glu292Val)</a></li>
+                    <li><b>Intervals:</b><br />
+                      <a class="example-input" href="#input=chr8%3A141310715-141310720&amp;hg=hg19-to-hg38">chr8:141310715-141310720</a><br />
+                      <a class="example-input" href="#input=chr8%20%20%20141310715%20%20%20141310720&amp;hg=hg19-to-hg38">chr8 &nbsp; 141310715 &nbsp; 141310720</a></li>
                   </ul>
                 </div>
                 The "chr" prefix is optional, and separators can be <code>:</code>, <code>-</code>, <code>&gt;</code>, or space(s).
@@ -1496,6 +1504,16 @@
         $("#submit-button").removeClass(["loading", "disabled"]);
         $('.question').popup()
       })
+    })
+
+    // The input format examples link to their own search, so they can be opened in a new tab. The
+    // page only reads the URL on load, so a plain click runs the search from the link's URL here.
+    $(".example-input").click((e) => {
+      e.preventDefault()
+      const exampleParams = new URLSearchParams(e.currentTarget.hash.slice(1))
+      $(`input[name='hg'][value='${exampleParams.get("hg")}']`).prop("checked", true)
+      $("#search-box").val(exampleParams.get("input"))
+      $("#submit-button").click()
     })
 
     const hgFromUrl = $.urlParam('hg')
