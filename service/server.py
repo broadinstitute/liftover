@@ -139,6 +139,126 @@ def reverse_complement(seq):
     return ",".join(allele.translate(table)[::-1] for allele in seq.split(","))
 
 
+# FASTA index (.fai) contents, keyed by FASTA path. Each index is read once per worker process
+# and never changes while the service runs.
+_FASTA_INDEX_BY_FASTA_PATH = {}
+
+
+def read_fasta_index(fasta_path):
+    """Read the samtools-style .fai index that sits next to a FASTA file.
+
+    Args:
+        fasta_path (str): path of the FASTA file. Its index must be at fasta_path + ".fai".
+
+    Returns:
+        dict: contig name -> (contig length, byte offset of its first base, bases per line,
+            bytes per line), one entry per line of the index.
+    """
+    if fasta_path not in _FASTA_INDEX_BY_FASTA_PATH:
+        fasta_index = {}
+        with open(f"{fasta_path}.fai", "rt", encoding="UTF-8") as index_file:
+            for line in index_file:
+                fields = line.rstrip("\n").split("\t")
+                if len(fields) >= 5:
+                    fasta_index[fields[0]] = tuple(int(value) for value in fields[1:5])
+        _FASTA_INDEX_BY_FASTA_PATH[fasta_path] = fasta_index
+    return _FASTA_INDEX_BY_FASTA_PATH[fasta_path]
+
+
+def find_fasta_contig_name(fasta_index, chrom):
+    """Return the name a FASTA index uses for a chromosome, or None when it has no such contig.
+
+    The references disagree on naming: hg19.fa has "8" and "MT", while hg38.fa and chm13v2.0.fa
+    have "chr8" and "chrM". The page and the API accept either spelling for any build.
+
+    Args:
+        fasta_index (dict): the output of read_fasta_index
+        chrom (str): chromosome name, with or without a "chr" prefix
+    """
+    chrom_without_prefix = chrom[3:] if chrom.lower().startswith("chr") else chrom
+    chrom_without_prefix = chrom_without_prefix.upper()
+    if chrom_without_prefix in ("M", "MT"):
+        candidate_names = ["MT", "chrM", "M", "chrMT"]
+    else:
+        candidate_names = [chrom_without_prefix, f"chr{chrom_without_prefix}"]
+    for candidate_name in candidate_names:
+        if candidate_name in fasta_index:
+            return candidate_name
+    return None
+
+
+def fetch_reference_sequence(fasta_path, chrom, pos, length):
+    """Read a stretch of the reference genome, using the FASTA's .fai index to seek straight to it.
+
+    Args:
+        fasta_path (str): path of an indexed FASTA file
+        chrom (str): chromosome name, with or without a "chr" prefix
+        pos (int): 1-based position of the first base to read
+        length (int): number of bases to read
+
+    Returns:
+        str: the bases, upper-cased, or None when the contig isn't in the FASTA or the interval
+            runs outside it
+    """
+    fasta_index = read_fasta_index(fasta_path)
+    contig_name = find_fasta_contig_name(fasta_index, chrom)
+    if contig_name is None:
+        return None
+    contig_length, contig_byte_offset, bases_per_line, bytes_per_line = fasta_index[contig_name]
+    if pos < 1 or length < 1 or pos + length - 1 > contig_length:
+        return None
+
+    # 0-based index of the first base and of the last base, turned into byte offsets by skipping
+    # the newline(s) at the end of every full line before them.
+    first_base_index = pos - 1
+    last_base_index = pos + length - 2
+    first_byte = (contig_byte_offset + (first_base_index // bases_per_line) * bytes_per_line
+                  + first_base_index % bases_per_line)
+    last_byte = (contig_byte_offset + (last_base_index // bases_per_line) * bytes_per_line
+                 + last_base_index % bases_per_line)
+    with open(fasta_path, "rb") as fasta_file:
+        fasta_file.seek(first_byte)
+        raw_bytes = fasta_file.read(last_byte - first_byte + 1)
+    sequence = raw_bytes.decode("ascii").replace("\n", "").replace("\r", "").upper()
+    return sequence if len(sequence) == length else None
+
+
+def get_reference_allele_when_input_ref_differs(genome, chrom, pos, ref):
+    """Check a variant's REF allele against the reference genome it was entered on.
+
+    Deliberately fails open, like check_ref_allele in SpliceAI-lookup's server.py: a missing FASTA
+    or index, an unknown contig, a position outside the contig, and a reference that isn't plain
+    ACGT (both hg19 and hg38 hard-mask the chrY pseudoautosomal regions to N) all return None, so a
+    position the reference can't speak to is lifted over as entered rather than rejected.
+
+    Args:
+        genome (str): "hg19", "hg38" or "t2t"
+        chrom (str): chromosome name, with or without a "chr" prefix
+        pos (int or str): 1-based position of the variant
+        ref (str): the REF allele as entered
+
+    Returns:
+        str: the reference genome's allele at the same position and length as ref, when it differs
+            from ref. None when ref matches, or when there is nothing to compare it to.
+    """
+    # hg19's mitochondrial contig can't be checked: hg19.fa's MT is the 16,569 bp rCRS, while the
+    # hg19ToHg38 chain lifts UCSC hg19's 16,571 bp chrM (NC_001807), whose coordinates drift from
+    # rCRS after base 149. Comparing the two would report mismatches for correctly entered variants.
+    if genome == "hg19" and chrom.upper().replace("CHR", "") in ("M", "MT"):
+        return None
+    try:
+        reference_allele = fetch_reference_sequence(FASTA_PATHS[genome], chrom, int(pos), len(ref))
+    except Exception as e:
+        print(f"WARNING: unable to read the {genome} reference at {chrom}:{pos}: {type(e).__name__}: {e}",
+              flush=True)
+        return None
+    if reference_allele is None or any(base not in "ACGT" for base in reference_allele):
+        return None
+    if reference_allele == ref.upper():
+        return None
+    return reference_allele
+
+
 def get_user_ip(request):
     """Return the client IP that Cloud Run's load balancer verified.
 
@@ -600,11 +720,48 @@ def run_liftover():
         print(f"{logging_prefix}: ======================", flush=True)
         print(f"{logging_prefix}: {hg} liftover {format}: {chrom}:{variant_log_string}", flush=True)
 
+    warnings = []
+    if format == "variant" and ref.upper() in alt.upper().split(","):
+        return error_response(f"REF {ref} and ALT {alt} are the same, so there is no variant to lift over. "
+                              f"To lift over the position itself, use format=position.")
+    if format == "variant":
+        # A REF the reference genome doesn't have makes the bcftools plugin treat the typed REF as
+        # a second ALT (8-141310715-T-G on hg38 came back as C>T,G). So the reference allele is
+        # lifted over instead, and the mismatch is reported as a warning rather than dropped, the
+        # way GeneBe's liftover and variant-relaxed APIs do.
+        input_reference_genome = hg.split("-")[0]
+        reference_allele = get_reference_allele_when_input_ref_differs(input_reference_genome, chrom, pos, ref)
+        if reference_allele:
+            # An indel's ALT alleles start with the same anchor base as its REF (8-141310715-T-TA),
+            # so the anchor is corrected in them too: GeneBe and Ensembl both read that input as
+            # C>CA, where replacing the REF alone would lift over C>TA, a different variant.
+            alts = alt.upper().split(",")
+            if all(a[0] == ref[0].upper() for a in alts):
+                alts = [reference_allele[0] + a[1:] for a in alts]
+            corrected_alt = ",".join(alts)
+            if reference_allele in alts:
+                return error_response(
+                    f"REF {ref} does not match the {input_reference_genome} reference genome, which has "
+                    f"{reference_allele} at {chrom}:{pos}. That is the ALT allele entered, so there is no "
+                    f"variant to lift over.")
+            warnings.append({
+                "code": "REF_MISMATCH",
+                "message": (
+                    f"REF {ref} does not match the {input_reference_genome} reference genome, which has "
+                    f"{reference_allele} at {chrom}:{pos}, so {reference_allele}>{corrected_alt} was lifted over "
+                    f"instead."),
+                "input_ref": ref,
+                "reference_ref": reference_allele,
+            })
+            ref = reference_allele
+            alt = corrected_alt
+            params["ref"] = ref
+            params["alt"] = alt
+
     try:
         if format == "variant":
             result = run_variant_liftover_tool(hg, chrom, pos, ref, alt, verbose=verbose)
             try:
-                input_reference_genome = hg.split("-")[0]
                 normalized_input_variant = run_bcftools_norm(input_reference_genome, chrom, pos, ref, alt, verbose=verbose)
                 result.update(normalized_input_variant)
             except Exception as e:
@@ -614,6 +771,8 @@ def run_liftover():
     except Exception as e:
         return error_response(e)
 
+    if warnings:
+        result["warnings"] = warnings
     return Response(json.dumps({**params, **result}), mimetype='application/json')
 
 

@@ -320,5 +320,158 @@ class RateLimitEndpointTests(unittest.TestCase):
         self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), "*")
 
 
+def write_indexed_fasta(directory, contigs, bases_per_line=5):
+    """Write a small FASTA and its .fai index, wrapping each contig's bases at bases_per_line.
+
+    Args:
+        directory (str): where to write the files
+        contigs (list): (name, sequence) pairs
+        bases_per_line (int): line width, kept small so reads cross line boundaries
+
+    Returns:
+        str: the FASTA path
+    """
+    fasta_path = os.path.join(directory, "reference.fa")
+    index_lines = []
+    with open(fasta_path, "wb") as fasta_file:
+        for name, sequence in contigs:
+            fasta_file.write(f">{name}\n".encode("ascii"))
+            index_lines.append(f"{name}\t{len(sequence)}\t{fasta_file.tell()}\t{bases_per_line}\t{bases_per_line + 1}\n")
+            for i in range(0, len(sequence), bases_per_line):
+                fasta_file.write(f"{sequence[i:i + bases_per_line]}\n".encode("ascii"))
+    with open(f"{fasta_path}.fai", "wt", encoding="UTF-8") as index_file:
+        index_file.writelines(index_lines)
+    return fasta_path
+
+
+class ReferenceAlleleCheckTests(unittest.TestCase):
+
+    CHR8_SEQUENCE = "ACGTACGTAAccggttNNNNGATTACA"
+
+    def setUp(self):
+        self.fasta_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.fasta_dir.cleanup)
+        self.fasta_path = write_indexed_fasta(self.fasta_dir.name, [
+            ("chr8", self.CHR8_SEQUENCE),
+            ("chrM", "GATCACAGGT"),
+        ])
+        # The index cache is keyed by path and temp paths are unique, but clear it anyway so a
+        # test never sees an index left over from another one.
+        server._FASTA_INDEX_BY_FASTA_PATH.clear()
+        patcher = mock.patch.dict(server.FASTA_PATHS, {"hg38": self.fasta_path})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_reads_single_bases_at_every_position(self):
+        for pos, base in enumerate(self.CHR8_SEQUENCE.upper(), start=1):
+            self.assertEqual(server.fetch_reference_sequence(self.fasta_path, "chr8", pos, 1), base)
+
+    def test_reads_across_line_boundaries_and_upper_cases_soft_masked_bases(self):
+        self.assertEqual(server.fetch_reference_sequence(self.fasta_path, "chr8", 4, 9), "TACGTAACC")
+
+    def test_accepts_chrom_with_or_without_chr_prefix(self):
+        self.assertEqual(server.fetch_reference_sequence(self.fasta_path, "8", 1, 4), "ACGT")
+        self.assertEqual(server.fetch_reference_sequence(self.fasta_path, "CHR8", 1, 4), "ACGT")
+
+    def test_mt_and_m_both_find_the_mitochondrial_contig(self):
+        self.assertEqual(server.fetch_reference_sequence(self.fasta_path, "MT", 1, 3), "GAT")
+        self.assertEqual(server.fetch_reference_sequence(self.fasta_path, "chrM", 1, 3), "GAT")
+
+    def test_returns_none_outside_the_contig_or_for_an_unknown_contig(self):
+        self.assertIsNone(server.fetch_reference_sequence(self.fasta_path, "chr8", 0, 1))
+        self.assertIsNone(server.fetch_reference_sequence(self.fasta_path, "chr8", len(self.CHR8_SEQUENCE), 2))
+        self.assertIsNone(server.fetch_reference_sequence(self.fasta_path, "chr9", 1, 1))
+
+    def test_matching_ref_returns_none(self):
+        self.assertIsNone(server.get_reference_allele_when_input_ref_differs("hg38", "8", 5, "acg"))
+
+    def test_mismatched_ref_returns_the_reference_allele(self):
+        self.assertEqual(server.get_reference_allele_when_input_ref_differs("hg38", "8", 5, "TTT"), "ACG")
+
+    def test_n_masked_reference_is_not_reported_as_a_mismatch(self):
+        self.assertIsNone(server.get_reference_allele_when_input_ref_differs("hg38", "8", 17, "A"))
+
+    def test_missing_fasta_fails_open(self):
+        with mock.patch.dict(server.FASTA_PATHS, {"hg38": os.path.join(self.fasta_dir.name, "missing.fa")}):
+            self.assertIsNone(server.get_reference_allele_when_input_ref_differs("hg38", "8", 5, "T"))
+
+    def test_hg19_mitochondrial_variants_are_not_checked(self):
+        with mock.patch.dict(server.FASTA_PATHS, {"hg19": self.fasta_path}):
+            self.assertIsNone(server.get_reference_allele_when_input_ref_differs("hg19", "MT", 1, "T"))
+            self.assertIsNone(server.get_reference_allele_when_input_ref_differs("hg19", "chrM", 1, "T"))
+        self.assertEqual(server.get_reference_allele_when_input_ref_differs("hg38", "chrM", 1, "T"), "G")
+
+    def test_non_integer_position_fails_open(self):
+        self.assertIsNone(server.get_reference_allele_when_input_ref_differs("hg38", "8", "5x", "T"))
+
+
+class LiftoverRefMismatchEndpointTests(unittest.TestCase):
+
+    def setUp(self):
+        self.fasta_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.fasta_dir.cleanup)
+        fasta_path = write_indexed_fasta(self.fasta_dir.name, [("chr8", "ACGTACGTAACCGGTT")])
+        server._FASTA_INDEX_BY_FASTA_PATH.clear()
+        for patcher in (
+                mock.patch.dict(server.FASTA_PATHS, {"hg38": fasta_path}),
+                mock.patch.object(server, "DISABLE_RATE_LIMIT", True),
+                # The liftover and normalization tools need bcftools, chain files and full
+                # references, none of which exist here. Record what they were asked to lift over.
+                mock.patch.object(server, "run_variant_liftover_tool", side_effect=self.fake_liftover),
+                mock.patch.object(server, "run_bcftools_norm", side_effect=lambda *args, **kwargs: {})):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.lifted_over = []
+        server.app.config["TESTING"] = True
+        self.client = server.app.test_client()
+
+    def fake_liftover(self, hg, chrom, pos, ref, alt, verbose=False):
+        self.lifted_over.append((chrom, pos, ref, alt))
+        return {"output_ref": ref, "output_alt": alt, "liftover_tool": "fake"}
+
+    def liftover_variant(self, pos, ref, alt):
+        response = self.client.get("/liftover/", query_string={
+            "hg": "hg38-to-hg19", "format": "variant", "chrom": "8", "pos": pos, "ref": ref, "alt": alt})
+        return json.loads(response.data)
+
+    def test_matching_ref_is_lifted_over_as_entered_without_warnings(self):
+        result = self.liftover_variant(5, "A", "G")
+        self.assertEqual(self.lifted_over, [("8", "5", "A", "G")])
+        self.assertNotIn("warnings", result)
+
+    def test_mismatched_ref_is_replaced_and_reported_as_a_ref_mismatch_warning(self):
+        result = self.liftover_variant(5, "T", "G")
+        self.assertEqual(self.lifted_over, [("8", "5", "A", "G")])
+        self.assertEqual(result["ref"], "A")
+        [warning] = result["warnings"]
+        self.assertEqual(warning["code"], "REF_MISMATCH")
+        self.assertEqual((warning["input_ref"], warning["reference_ref"]), ("T", "A"))
+        self.assertIn("REF T does not match the hg38 reference genome", warning["message"])
+
+    def test_wrong_anchor_base_of_an_insertion_is_corrected_in_ref_and_alt(self):
+        result = self.liftover_variant(5, "T", "TGG")
+        self.assertEqual(self.lifted_over, [("8", "5", "A", "AGG")])
+        self.assertEqual((result["ref"], result["alt"]), ("A", "AGG"))
+        self.assertIn("so A>AGG was lifted over instead", result["warnings"][0]["message"])
+
+    def test_wrong_bases_of_a_deletion_are_replaced_by_the_reference_ones(self):
+        self.liftover_variant(5, "TT", "T")
+        self.assertEqual(self.lifted_over, [("8", "5", "AC", "A")])
+
+    def test_multi_allelic_insertions_all_get_the_corrected_anchor(self):
+        self.liftover_variant(5, "T", "TG,TGG")
+        self.assertEqual(self.lifted_over, [("8", "5", "A", "AG,AGG")])
+
+    def test_ref_equal_to_alt_is_an_error_not_a_liftover(self):
+        result = self.liftover_variant(5, "A", "A")
+        self.assertEqual(self.lifted_over, [])
+        self.assertIn("are the same", result["error"])
+
+    def test_alt_equal_to_the_reference_allele_is_an_error_not_a_liftover(self):
+        result = self.liftover_variant(5, "T", "A")
+        self.assertEqual(self.lifted_over, [])
+        self.assertIn("no variant to lift over", result["error"])
+
+
 if __name__ == "__main__":
     unittest.main()
