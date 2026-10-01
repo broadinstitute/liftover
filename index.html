@@ -1279,12 +1279,15 @@
       // Input rejected before anything is looked up: outline the box in red and say why in
       // #error-box, which sits right under the form. A resubmit is the only thing that clears
       // them: either the value is still bad and gets flagged again, or it was fixed and the
-      // search goes ahead. The previous results stay on screen either way. .text() because
-      // some messages quote the input, which must render as text, not markup.
+      // search goes ahead. The previous results stay on screen either way, but their warnings are
+      // hidden, since #warning-box sits right under #error-box and would read as part of the new
+      // message. .text() because some messages quote the input, which must render as text, not
+      // markup.
       $("#search-box").removeClass("invalid")
       $("#error-box").hide().text("")
       const rejectInput = (message) => {
         $("#search-box").addClass("invalid")
+        $("#warning-box").hide()
         $("#error-box").text(message).show()
       }
 
