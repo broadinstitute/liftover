@@ -94,6 +94,8 @@
                   while for <b>variants</b> it uses a new <a href="https://github.com/freeseek/score#liftover-vcfs" target="_blank">bcftools plugin</a> which avoids many of the
                   limitations of other liftover tools (particularly for indels) as described in [<a href="https://academic.oup.com/bioinformatics/advance-article/doi/10.1093/bioinformatics/btae038/7585532">Genovese 2024</a>]. All chain files were downloaded from UCSC.<br />
                   <br />
+                  We use the <a href="https://genebe.net" target="_blank">GeneBe API</a> to convert HGVS notation to genomic coordinates for hg38, and to provide variant consequences for both hg19 and hg38. The <a href="https://rest.ensembl.org" target="_blank">Ensembl API</a> is still used to convert HGVS notation for hg19, and as a fallback when GeneBe cannot convert an HGVS variant.<br />
+                  <br />
                   To submit issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">broadinstitute/liftover/issues</a>.<br />
                 </div>
                 <br />
@@ -190,13 +192,16 @@
           <div>
             To post issues or feature requests, please use <a href="https://github.com/broadinstitute/liftover/issues" target="_blank">liftover/issues</a><br />
             <br />
-            <b>May 12, 2026</b><br />
-            - Added <i>output_ref_alt_swap</i> and <i>output_reverse_complemented</i> to API responses to address <a href="https://github.com/broadinstitute/liftover/issues/26" target="_blank">issue #26</a>.<br />
-            - Updated list of Related web tools<br />
+            <b>September 30, 2026</b><br />
+            - Switched to the <a href="https://genebe.net" target="_blank">GeneBe API</a> for faster HGVS conversion and variant consequence lookup on hg38, with the Ensembl API as a fallback<br />
             <br />
             <a id="more-details3-button" href="#"
                onclick="$('#more-details3').show();$('#more-details3-button').hide();">[show older updates]</a>
             <div id="more-details3" style="display:none">
+              <b>May 12, 2026</b><br />
+              - Added <i>output_ref_alt_swap</i> and <i>output_reverse_complemented</i> to API responses to address <a href="https://github.com/broadinstitute/liftover/issues/26" target="_blank">issue #26</a>.<br />
+              - Updated list of Related web tools<br />
+              <br />
               <b>March 3, 2024</b><br />
               - Moved server to Google Cloud Run<br />
               - Input variants are now left-aligned before being displayed in the results table<br />
@@ -232,6 +237,8 @@
     <div class="eight wide column">
       <div class="results-div">
         <div id="error-box" style="color:darkred"></div>
+        <div id="status-box" style="display:none; color:#555555; padding-bottom:10px"></div>
+        <div id="warning-box" style="display:none; color:#9a5b00; padding-bottom:10px"></div>
         <div id="response-box"></div>
       </div>
     </div>
@@ -280,65 +287,6 @@
           'iu'
   )
 
-  const GRCH37_contigs = {
-    "1": "NC_000001.10",
-    "2": "NC_000002.11",
-    "3": "NC_000003.11",
-    "4": "NC_000004.11",
-    "5": "NC_000005.9",
-    "6": "NC_000006.11",
-    "7": "NC_000007.13",
-    "8": "NC_000008.10",
-    "9": "NC_000009.11",
-    "10": "NC_000010.10",
-    "11": "NC_000011.9",
-    "12": "NC_000012.11",
-    "13": "NC_000013.10",
-    "14": "NC_000014.8",
-    "15": "NC_000015.9",
-    "16": "NC_000016.9",
-    "17": "NC_000017.10",
-    "18": "NC_000018.9",
-    "19": "NC_000019.9",
-    "20": "NC_000020.10",
-    "21": "NC_000021.8",
-    "22": "NC_000022.10",
-    "X": "NC_000023.10",
-    "Y": "NC_000024.9",
-    "M":  "NC_012920.1",
-    "MT": "NC_012920.1",
-  }
-
-  const GRCH38_contigs = {
-    "1" : "NC_000001.11",
-    "2" : "NC_000002.12",
-    "3" : "NC_000003.12",
-    "4" : "NC_000004.12",
-    "5" : "NC_000005.10",
-    "6" : "NC_000006.12",
-    "7" : "NC_000007.14",
-    "8" : "NC_000008.11",
-    "9" : "NC_000009.12",
-    "10": "NC_000010.11",
-    "11": "NC_000011.10",
-    "12": "NC_000012.12",
-    "13": "NC_000013.11",
-    "14": "NC_000014.9",
-    "15": "NC_000015.10",
-    "16": "NC_000016.10",
-    "17": "NC_000017.11",
-    "18": "NC_000018.10",
-    "19": "NC_000019.10",
-    "20": "NC_000020.11",
-    "21": "NC_000021.9",
-    "22": "NC_000022.11",
-    "X" : "NC_000023.11",
-    "Y" : "NC_000024.10",
-    "M":  "NC_012920.1",
-    "MT": "NC_012920.1",
-  }
-
-
   //const LIFTOVER_API_URL = "http://localhost:8080/liftover/"
   //const LIFTOVER_API_URL = "https://spliceailookup-api.broadinstitute.org/liftover/"
   const LIFTOVER_API_URL = "https://liftover-xwkwwwxdwq-uc.a.run.app/liftover/"
@@ -376,36 +324,830 @@
   }
 
 
-  const parseVariantToHGVS = (variant, genomeVersion) => {
-    const m = variant.match(VARIANT_RE)
-    if (m) {
-      let chrom = m[2].toUpperCase()
-      if (genomeVersion == "37") {
-        chrom = GRCH37_contigs[chrom]
-      } else if(genomeVersion == "38") {
-        chrom = GRCH38_contigs[chrom]
-      } else {
-        throw "Invalid genomeVersion: " + genomeVersion
-      }
+  // ---------------------------------------------------------------------------------------------
+  // Variant resolution: turns what the user typed (chrom-pos-ref-alt, HGVS notation or a dbSNP id)
+  // into "{chrom}-{pos}-{ref}-{alt}" and looks up its most severe consequence and gene. Ported from
+  // SpliceAI-lookup's index.html (normalizeVariant and the functions it calls), trimmed to what this
+  // page shows: one consequence and one gene rather than a consequence per transcript.
+  //
+  //  - hg38 HGVS / dbSNP ids: GeneBe and Ensembl are asked at once, and the first usable answer wins.
+  //  - hg19 HGVS / dbSNP ids: Ensembl alone, because GeneBe reads genomic HGVS as hg38 whatever
+  //    genome is requested and then lifts it over, which makes its GRCh37 coordinates untrustworthy.
+  //  - VariantValidator is the last resort for HGVS that neither of those could convert.
+  //  - chrom-pos-ref-alt is parsed here and never waits on a resolver. Its REF allele is checked by
+  //    the liftover server against the reference genome, which reports a mismatch as a REF_MISMATCH
+  //    warning.
+  // ---------------------------------------------------------------------------------------------
 
-      const pos = parseInt(m[3].replace(/,/g, ""))
-      const ref = m[4].toUpperCase()
-      const alt = m[5].toUpperCase()
+  // What every resolver's answer has to look like before it is lifted over: a primary contig and
+  // plain ACGT alleles, the ALT possibly multi-allelic. Ensembl can answer with a symbolic ALT (it
+  // reads "c.875A>Tfoo" as A>TFOO and returns "16-2317763-T-<TFOO>"), which is not a sequence change
+  // the liftover tool can lift, and which the results table would render as markup.
+  const RESOLVED_VARIANT_RE = /^([0-9]{1,2}|X|Y|M|MT)-[0-9]+-[ACGT]+-[ACGT]+(,[ACGT]+)*$/
 
-      if (ref.length == alt.length) {
-        variant = chrom + ":g." + pos + ref + ">" + alt
-      } else if (ref.length > alt.length) {
-        //deletion (https://varnomen.hgvs.org/recommendations/DNA/variant/deletion/)
-        variant = chrom + ":g." + (pos + 1) + "_" + (pos + ref.length - alt.length) + "del"
-      } else if (ref.length < alt.length) {
-        //insertion (https://varnomen.hgvs.org/recommendations/DNA/variant/insertion/)
-        variant = chrom + ":g." + pos + "_" + (pos + 1) + "ins" + alt.slice(1)
-      }
+  const GENEBE_API_PREFIX = "https://api.genebe.net/cloud/api-public/v1"
+  const GENEBE_TIMEOUT_MS = 15000  // 15 second timeout for GeneBe API calls
+  const ENSEMBL_TIMEOUT_MS = 90000  // 90 second timeout for Ensembl API calls
+  const VARIANTVALIDATOR_TIMEOUT_MS = 30000  // 30 second timeout for the VariantValidator fallback
+  // How long a finished liftover waits for its consequence lookup before being shown without it
+  const CONSEQUENCE_WAIT_AFTER_LIFTOVER_MS = 3000
+  // Counts searches, so a consequence that arrives late is shown only if its search is still the latest
+  let latestSearchId = 0
+  // Guidance appended to variant-resolution errors when HGVS lookup is unavailable.
+  const GENOMIC_COORDINATE_HINT = `Try entering the variant using genomic coordinates rather than HGVS (eg. "chrom-pos-ref-alt", "chrom:pos ref>alt", etc.)`
 
-      console.log("Parsed variant", variant)
+  // Ensembl's VEP consequence ranking, most severe first, as returned by
+  // https://rest.ensembl.org/info/variation/consequence_types?rank=1
+  const CONSEQUENCE_SEVERITY_ORDER = [
+    "transcript_ablation", "splice_acceptor_variant", "splice_donor_variant", "stop_gained",
+    "frameshift_variant", "stop_lost", "start_lost", "transcript_amplification", "feature_elongation",
+    "feature_truncation", "inframe_insertion", "inframe_deletion", "missense_variant",
+    "protein_altering_variant", "splice_donor_5th_base_variant", "splice_region_variant",
+    "splice_donor_region_variant", "splice_polypyrimidine_tract_variant",
+    "incomplete_terminal_codon_variant", "start_retained_variant", "stop_retained_variant",
+    "synonymous_variant", "coding_sequence_variant", "mature_miRNA_variant", "5_prime_UTR_variant",
+    "3_prime_UTR_variant", "non_coding_transcript_exon_variant", "intron_variant",
+    "NMD_transcript_variant", "non_coding_transcript_variant", "coding_transcript_variant",
+    "upstream_gene_variant", "downstream_gene_variant", "TFBS_ablation", "TFBS_amplification",
+    "TF_binding_site_variant", "regulatory_region_ablation", "regulatory_region_amplification",
+    "regulatory_region_variant", "intergenic_variant", "sequence_variant",
+  ]
+
+  // Terms GeneBe reports that Ensembl's ranking doesn't list, mapped to the VEP term they sit next to
+  // in severity. GeneBe uses SnpEff's vocabulary, which splits VEP's inframe terms into
+  // conservative/disruptive pairs. Without this they would sort below every VEP term.
+  const NON_VEP_CONSEQUENCE_EQUIVALENTS = {
+    "5_prime_UTR_premature_start_codon_gain_variant": "5_prime_UTR_variant",
+    "exon_region": "non_coding_transcript_exon_variant",
+    "conservative_inframe_deletion": "inframe_deletion",
+    "disruptive_inframe_deletion": "inframe_deletion",
+    "conservative_inframe_insertion": "inframe_insertion",
+    "disruptive_inframe_insertion": "inframe_insertion",
+    // "within a gene but not within a transcript" -- VEP has no equivalent, so it sits at the
+    // weakest transcript-level term rather than below everything.
+    "intragenic_variant": "coding_transcript_variant",
+  }
+
+  const mostSevereConsequence = (consequenceTerms) => {
+    /* Return the most severe of the given consequence terms. Terms in neither
+     * CONSEQUENCE_SEVERITY_ORDER nor NON_VEP_CONSEQUENCE_EQUIVALENTS rank below all the ones that
+     * are, and ties keep the order the API returned them in.
+     *
+     * Args:
+     *  consequenceTerms (array): one or more SO consequence terms. Must not be empty.
+     */
+    const rank = (term) => {
+      const i = CONSEQUENCE_SEVERITY_ORDER.indexOf(NON_VEP_CONSEQUENCE_EQUIVALENTS[term] || term)
+      return i === -1 ? CONSEQUENCE_SEVERITY_ORDER.length : i
+    }
+    return consequenceTerms.reduce((mostSevere, term) => rank(term) < rank(mostSevere) ? term : mostSevere)
+  }
+
+  const geneOfConsequence = (consequenceRecords, consequence) => {
+    /* Return the gene of the first per-transcript record that carries the given consequence term.
+     *
+     * Args:
+     *  consequenceRecords (array): {terms, geneSymbol, geneId} objects, one per transcript record
+     *  consequence (string): the variant's most severe consequence term
+     *
+     * Return:
+     *  object: {geneSymbol, geneId}, both "" when no record carries the term
+     */
+    const record = consequence && consequenceRecords.find(
+      (r) => r.terms && r.terms.includes(consequence) && r.geneSymbol)
+    return {
+      "geneSymbol": record ? record.geneSymbol : "",
+      "geneId": record && record.geneId ? record.geneId : "",
+    }
+  }
+
+  const alleleChange = (ref, alt) => {
+    /* Describe what a variant changes, independent of how it's written: the bases an indel shares at
+     * each end are stripped, so "CC>C" and "GC>G" (the same deleted C, written at different
+     * positions) both come out as "C/". Used to tell a re-written variant apart from a different one.
+     *
+     * Args:
+     *  ref (string): reference allele
+     *  alt (string): alternate allele
+     */
+    let start = 0
+    while (start < ref.length && start < alt.length && ref[start] == alt[start]) {
+      start++
+    }
+    let end = 0
+    while (end < ref.length - start && end < alt.length - start
+           && ref[ref.length - 1 - end] == alt[alt.length - 1 - end]) {
+      end++
+    }
+    return `${ref.slice(start, ref.length - end)}/${alt.slice(start, alt.length - end)}`
+  }
+
+  const requestJson = async (url, timeoutMs) => {
+    /* GET a URL and parse its JSON body, adding an 'ok' field that says whether the HTTP status was
+     * 2xx. Rejects on a timeout, an unreachable server, or a body that isn't JSON.
+     *
+     * Args:
+     *  url (string): the URL to fetch
+     *  timeoutMs (number): how long to wait before giving up
+     */
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    let response
+    try {
+      response = await fetch(url, {signal: controller.signal})
+    } catch (e) {
+      throw Error(e.name === "AbortError"
+        ? `Request timed out after ${timeoutMs / 1000} seconds`
+        : "Unable to reach server")
+    } finally {
+      clearTimeout(timeoutId)
+    }
+    console.log("GET", url, response.status, response.statusText)
+    const responseText = await response.text()
+    let responseJson
+    try {
+      responseJson = JSON.parse(responseText)
+    } catch (e) {
+      console.error("Unable to parse response", responseText)
+      throw Error(`Unexpected response from ${url}`)
+    }
+    // Ensembl answers a single variant with a JSON array, which can carry an 'ok' field like any
+    // other object without changing its elements.
+    responseJson.ok = response.ok
+    return responseJson
+  }
+
+  const firstUsableAnswer = async (attempts) => {
+    /* Return the first of several in-flight lookups to come back with something usable.
+     *
+     * Promise.any counts only a rejection as a loss, but these resolvers answer null when they have
+     * nothing to say, so each one is wrapped to reject on null. Every attempt is started before this
+     * is called, so the losers keep running and are simply ignored.
+     *
+     * Args:
+     *  attempts (array): promises, each resolving to a result object or to null
+     *
+     * Return:
+     *  object: the first usable result, or null when every attempt failed or had nothing
+     */
+    try {
+      return await Promise.any(attempts.map(async (attempt) => {
+        const result = await attempt
+        if (!result) {
+          throw Error("no usable answer")
+        }
+        return result
+      }))
+    } catch (e) {
+      return null  // AggregateError: every attempt failed or had nothing
+    }
+  }
+
+  const annotateVariantWithGeneBe = async (queryVariant, genomeVersion, userInputVariant, expectedVariant = null) => {
+    /* Resolve and annotate a variant with the GeneBe variant-relaxed API. Returns null if GeneBe is
+     * unreachable or has nothing usable for the variant, so the caller can fall back to Ensembl.
+     *
+     * GeneBe doesn't reject a REF allele that disagrees with the reference genome. It substitutes the
+     * reference's allele, annotates that, and says so in a 'warning' field. That field covers hg38
+     * only, and it is the only way to catch a wrong REF in HGVS that GeneBe resolved on its own.
+     *
+     * Args:
+     *  queryVariant (string): what to ask GeneBe about. variant-relaxed takes HGVS, rs ids and SPDI
+     *      as well as "{chrom}-{pos}-{ref}-{alt}".
+     *  genomeVersion (string): "37" or "38"
+     *  userInputVariant (string): what the user typed, quoted in the warning
+     *  expectedVariant (string): "{chrom}-{pos}-{ref}-{alt}" the answer has to describe, or null when
+     *      the caller is relying on GeneBe to resolve the coordinates
+     *
+     * Return:
+     *  object: {variant, consequence, geneSymbol, geneId, refMismatchWarning, hgvsCByTranscriptId},
+     *      refMismatchWarning being set when GeneBe's warning field says it replaced the REF allele.
+     *      The variant is in hg38 coordinates whatever genome version was asked for. null when GeneBe
+     *      had nothing, and also when an hg19 answer describes a different allele change than
+     *      expectedVariant.
+     */
+    // GeneBe names the genome builds hg19 and hg38, where this page numbers them 37 and 38
+    const geneBeGenome = genomeVersion == "37" ? "hg19" : "hg38"
+    let annotationResponse
+    try {
+      annotationResponse = await requestJson(
+        `${GENEBE_API_PREFIX}/variant-relaxed?variant=${encodeURIComponent(queryVariant)}&genome=${geneBeGenome}`,
+        GENEBE_TIMEOUT_MS)
+    } catch (e) {
+      console.warn("GeneBe API call failed:", e)
+      return null
+    }
+    const annotation = annotationResponse.ok && annotationResponse.variants ? annotationResponse.variants[0] : null
+    if (!annotation) {
+      console.warn("GeneBe variant-relaxed API returned no annotation for", queryVariant, annotationResponse)
+      return null
+    }
+    const returnedRef = annotation.ref ? String(annotation.ref).toUpperCase() : null
+    const returnedAlt = annotation.alt ? String(annotation.alt).toUpperCase() : null
+    if (!returnedRef || !returnedAlt || !annotation.chr || !annotation.pos) {
+      console.warn("GeneBe variant-relaxed API returned an incomplete variant for", queryVariant, annotation)
+      return null
+    }
+    const returnedVariant = `${String(annotation.chr).replace(/^chr/i, "").toUpperCase()}-${annotation.pos}-${returnedRef}-${returnedAlt}`
+    if (!RESOLVED_VARIANT_RE.test(returnedVariant)) {
+      console.warn("GeneBe returned a variant this page can't lift over:", returnedVariant)
+      return null
+    }
+    // GeneBe's silent REF substitution can leave no variant at all: given NM_001089.3:c.875T>A,
+    // with REF and ALT swapped, it answers 16-2317763-T-T with no warning (checked 2026-09-30).
+    // Treating that as no answer lets Ensembl's REF-mismatch message be the one shown.
+    if (returnedRef == returnedAlt) {
+      console.warn("GeneBe resolved the input to REF and ALT that are the same:", queryVariant, returnedVariant)
+      return null
     }
 
-    return variant
+    let refMismatchWarning = null
+    if (annotation.warning) {
+      const correctRef = annotation.warning.match(/reference sequence \(([ACGTN]+)\)/i)
+      // GeneBe's hg38 reference is N-masked across the chrY pseudoautosomal regions, so every
+      // variant in chrY:10,001-2,781,479 is reported as a REF mismatch against "N". That says
+      // nothing about the user's allele, so treat it as GeneBe having no answer for the position.
+      if (!correctRef || /^N+$/i.test(correctRef[1])) {
+        console.warn("GeneBe could not check the reference allele here, falling back:", queryVariant, annotation.warning)
+        return null
+      }
+      refMismatchWarning = `${userInputVariant} has an unexpected reference allele: the ${geneBeGenome} `
+        + `reference genome has ${correctRef[1].toUpperCase()} there, so ${returnedVariant} was lifted over `
+        + `instead. Check the variant and the selected genome build.`
+    }
+
+    // The warning field covers hg38 only. An hg19 query is answered by lifting to GRCh38, where the
+    // reference base may differ with nothing said about it, so when the caller brought its own hg19
+    // coordinates, compare what the variant changes. Positions can't be compared, since the echoed
+    // one is the lifted GRCh38 position, and GeneBe left-aligns indels, which re-writes the alleles
+    // without changing the variant (hg19 1-865507-CC-C comes back as 1-930124-GC-G).
+    if (expectedVariant && genomeVersion != "38") {
+      const askedFor = expectedVariant.split("-")
+      if (alleleChange(returnedRef, returnedAlt) != alleleChange(askedFor[2], askedFor[3])) {
+        console.warn("GeneBe annotated a different variant than the one asked about:", expectedVariant, returnedVariant)
+        return null
+      }
+    }
+
+    const consequence = annotation.effect ? mostSevereConsequence(annotation.effect.split(",")) : null
+    const gene = geneOfConsequence(
+      (annotation.consequences || []).map((c) => ({
+        "terms": c.consequences,
+        "geneSymbol": c.gene_symbol,
+        "geneId": c.gene_hgnc_id ? `HGNC:${c.gene_hgnc_id}` : "",
+      })),
+      consequence)
+    // When no transcript record carries the variant-level term, fall back on the gene GeneBe names
+    // for the variant as a whole.
+    const useVariantLevelGene = !gene.geneSymbol && annotation.gene_symbol
+    // Each transcript's c. notation for this variant, keyed by transcript id without its version, so
+    // resolveVariantWithGeneBe can check it against the c. notation the user typed
+    const hgvsCByTranscriptId = {}
+    for (const c of annotation.consequences || []) {
+      if (c.feature && c.hgvs_c) {
+        hgvsCByTranscriptId[String(c.feature).split(".")[0].toUpperCase()] = c.hgvs_c
+      }
+    }
+    return {
+      "variant": returnedVariant,
+      "consequence": consequence,
+      "geneSymbol": useVariantLevelGene ? annotation.gene_symbol : gene.geneSymbol,
+      "geneId": useVariantLevelGene
+        ? (annotation.gene_hgnc_id ? `HGNC:${annotation.gene_hgnc_id}` : "")
+        : gene.geneId,
+      "refMismatchWarning": refMismatchWarning,
+      // Credited under the results. GeneBe's variant page route is /variant/{hg19|hg38}/{query}, and
+      // returnedVariant is in hg38 coordinates whatever genome version was asked for.
+      "consequenceSource": "GeneBe",
+      "consequenceSourceUrl": `https://genebe.net/variant/hg38/${encodeURIComponent(returnedVariant)}`,
+      "hgvsCByTranscriptId": hgvsCByTranscriptId,
+    }
+  }
+
+  // The c. edits whose bases can be checked: a substitution ("c.875A>T") or a deletion or duplication
+  // that names its bases ("c.875delA", "c.875_876dupAT"). Captures the location, which may be a
+  // range and may be intronic (c.875+1) or in a UTR (c.-12, c.*34), then either the substitution's
+  // REF and ALT, or "del"/"dup" and the named bases.
+  const HGVS_C_POSITION = "[-*]?\\d+(?:[-+]\\d+)?"
+  // n. (non-coding transcript) notation is checked the same way, and the location includes the
+  // prefix so a c. edit is never matched against an n. one
+  const HGVS_C_EDIT = `([cn]\\.${HGVS_C_POSITION}(?:_${HGVS_C_POSITION})?)(?:([ACGT])>([ACGT])|(del|dup)([ACGT]+))`
+  // What the user typed: a transcript id, an optional "(GENE)", then the edit. Anything after it
+  // must follow a space, eg. " (p.Glu292Val)".
+  const TYPED_HGVS_C_EDIT_RE = new RegExp(`^\\s*((?:NM|NR|XM|XR)_\\d+|ENST\\d+)(?:\\.\\d+)?(?:\\([^)]*\\))?:${HGVS_C_EDIT}(?:\\s|$)`, "i")
+  // GeneBe's own c. notation for one transcript
+  const GENEBE_HGVS_C_EDIT_RE = new RegExp(`^${HGVS_C_EDIT}$`, "i")
+
+  const findHgvsCRefMismatch = (userInputVariant, hgvsCByTranscriptId) => {
+    /* Check the bases a c. substitution, deletion or duplication names against GeneBe's own c.
+     * notation for the same transcript. GeneBe's warning field doesn't cover c. notation: given
+     * NM_001089.3:c.875G>T, where the transcript has an A, it silently answers with c.875A>T, and
+     * given c.875delG it answers with c.875delA (checked 2026-09-30).
+     *
+     * Args:
+     *  userInputVariant (string): what the user typed
+     *  hgvsCByTranscriptId (object): from annotateVariantWithGeneBe
+     *
+     * Return:
+     *  string: the transcript's bases when they differ from the typed ones for the same edit at the
+     *      same location, otherwise null (including when the input is some other kind of HGVS, or
+     *      GeneBe describes the edit at a different location)
+     */
+    const typed = userInputVariant.match(TYPED_HGVS_C_EDIT_RE)
+    if (!typed) {
+      return null
+    }
+    const geneBeHgvsC = hgvsCByTranscriptId[typed[1].toUpperCase()]
+    const answered = geneBeHgvsC && geneBeHgvsC.match(GENEBE_HGVS_C_EDIT_RE)
+    // Groups, typed offset by the transcript id: location, substitution REF, substitution ALT,
+    // del/dup, named bases
+    if (!answered || answered[1] != typed[2]) {
+      return null
+    }
+    if (typed[3]) {
+      if (!answered[2] || answered[3].toUpperCase() != typed[4].toUpperCase()) {
+        return null
+      }
+      return answered[2].toUpperCase() != typed[3].toUpperCase() ? answered[2].toUpperCase() : null
+    }
+    if (!answered[4] || answered[4].toLowerCase() != typed[5].toLowerCase()) {
+      return null
+    }
+    return answered[5].toUpperCase() != typed[6].toUpperCase() ? answered[5].toUpperCase() : null
+  }
+
+  // A g. substitution or a g. deletion that names its bases, on a chromosome named as "8", "chr8" or
+  // "NC_000008.11". Captures the start position, then either the substitution's REF and ALT, or the
+  // deleted bases.
+  const HGVS_G_EDIT_RE = /^\s*(?:chr)?(?:[0-9XYMT]{1,2}|NC_\d+(?:\.\d+)?)(?:\([^)]*\))?:g\.(\d+)(?:([ACGT])>([ACGT])|(?:_\d+)?del([ACGT]+))\s*$/i
+
+  const findHgvsGRefMismatch = (userInputVariant, resolvedVariant) => {
+    /* Check the bases a g. substitution or deletion names against the variant GeneBe resolved it to.
+     * GeneBe's warning field doesn't cover g. notation either: given 8:g.141310715T>G, where hg38
+     * has a C, it silently answers with 8-141310715-C-G, and given 8:g.141310715delT it answers with
+     * 8-141310714-TC-T (checked 2026-09-30).
+     *
+     * Args:
+     *  userInputVariant (string): what the user typed
+     *  resolvedVariant (string): "{chrom}-{pos}-{ref}-{alt}" GeneBe resolved it to
+     *
+     * Return:
+     *  string: the reference bases when they differ from the typed ones for the same edit at the
+     *      same position, otherwise null (including when GeneBe left-aligned a deletion inside a
+     *      repeat to a different position, where the two can't be compared base for base)
+     */
+    const typed = userInputVariant.match(HGVS_G_EDIT_RE)
+    if (!typed) {
+      return null
+    }
+    const [, pos, ref, alt] = resolvedVariant.split("-")
+    if (typed[2]) {
+      if (pos != typed[1] || alt != typed[3].toUpperCase()) {
+        return null
+      }
+      return ref != typed[2].toUpperCase() ? ref : null
+    }
+    // A deletion resolves to its anchor base followed by the deleted bases
+    const deletedBases = ref.slice(1)
+    if (parseInt(pos) + 1 != parseInt(typed[1]) || alt.length != 1 || !ref.startsWith(alt)
+        || deletedBases.length != typed[4].length) {
+      return null
+    }
+    return deletedBases != typed[4].toUpperCase() ? deletedBases : null
+  }
+
+  const resolveVariantWithGeneBe = async (userInputVariant) => {
+    /* Resolve hg38 HGVS notation or a dbSNP id to "{chrom}-{pos}-{ref}-{alt}" with GeneBe, which
+     * annotates it in the same call. Returns null if GeneBe is unreachable or can't resolve it.
+     *
+     * Args:
+     *  userInputVariant (string): HGVS notation or a dbSNP id, as the user typed it
+     *
+     * Return:
+     *  object: {variant, consequence, geneSymbol, geneId, warnings}, or null
+     */
+    const result = await annotateVariantWithGeneBe(userInputVariant.trim(), "38", userInputVariant.trim())
+    if (!result) {
+      return null
+    }
+    result.warnings = result.refMismatchWarning ? [result.refMismatchWarning] : []
+    const transcriptRefAllele = findHgvsCRefMismatch(userInputVariant, result.hgvsCByTranscriptId)
+    if (transcriptRefAllele) {
+      result.warnings.push(`${userInputVariant.trim()} has an unexpected reference allele: the transcript `
+        + `has ${transcriptRefAllele} at that position, so ${result.variant} was lifted over instead. Check the `
+        + `variant and the selected genome build.`)
+    }
+    const genomicRefAllele = findHgvsGRefMismatch(userInputVariant, result.variant)
+    if (genomicRefAllele) {
+      result.warnings.push(`${userInputVariant.trim()} has an unexpected reference allele: the hg38 `
+        + `reference genome has ${genomicRefAllele} there, so ${result.variant} was lifted over instead. Check `
+        + `the variant and the selected genome build.`)
+    }
+    // A dbSNP id names a position, not an allele, and GeneBe answers a multi-allelic one with a
+    // single ALT of its choosing (rs1799966 comes back as 17-43071077-T-A, though GeneBe tags
+    // 17-43071077-T-C with that id too). Lifting over one allele the user never picked is only safe
+    // if the page says which one it used.
+    if (RSID_RE.test(userInputVariant)) {
+      result.warnings.push(`${userInputVariant.trim()} was resolved to ${result.variant}. A dbSNP ID can `
+        + `cover more than one alternate allele, so if you meant a different one, search for it as `
+        + `chrom-pos-ref-alt.`)
+    }
+    return result
+  }
+
+  const ensemblVepUrl = (genomeVersion, endpoint, query) => (
+    `https://${genomeVersion == "37" ? "grch37." : ""}rest.ensembl.org/vep/human/${endpoint}/`
+      + `${encodeURIComponent(query)}?content-type=application/json&vcf_string=1`
+  )
+
+  const ensemblRejection = (message) => {
+    /* An error meaning Ensembl answered and would not resolve this variant, as opposed to being
+     * unreachable. A variant Ensembl rejected on its merits (a REF allele the reference genome
+     * doesn't have, notation it cannot parse) gets the same answer from anywhere, so falling back to
+     * another resolver only costs time, and Ensembl's message is the one worth showing.
+     */
+    const error = Error(message)
+    error.ensemblRejected = true
+    return error
+  }
+
+  const summarizeEnsemblAnnotation = (annotation, variant) => {
+    /* Reduce one Ensembl VEP result to the fields this page uses.
+     *
+     * Args:
+     *  annotation (object): one element of a VEP response
+     *  variant (string): "{chrom}-{pos}-{ref}-{alt}" it describes
+     */
+    const consequence = annotation.most_severe_consequence || null
+    return {
+      "variant": variant,
+      "consequence": consequence,
+      "consequenceSource": "Ensembl",
+      ...geneOfConsequence(
+        (annotation.transcript_consequences || []).map((c) => ({
+          "terms": c.consequence_terms,
+          "geneSymbol": c.gene_symbol,
+          "geneId": c.gene_id,
+        })),
+        consequence),
+    }
+  }
+
+  const resolveWithEnsembl = async (userInputVariant, genomeVersion) => {
+    /* Convert HGVS notation or a dbSNP id to "{chrom}-{pos}-{ref}-{alt}" with the Ensembl VEP API.
+     *
+     * Throws rather than answering null, so the hg19 path can tell the user exactly why the
+     * conversion failed: a wrong REF allele, a timeout, notation Ensembl can't parse. The hg38 race
+     * catches that and treats it as one contestant losing, since GeneBe may still answer.
+     *
+     * A dbSNP id that covers several alleles at one position is kept multi-allelic ("17-43071077-T-A,C"),
+     * which the liftover server lifts over as one record.
+     *
+     * Args:
+     *  userInputVariant (string): HGVS notation or a dbSNP id, as the user typed it
+     *  genomeVersion (string): "37" or "38"
+     *
+     * Return:
+     *  object: {variant, consequence, geneSymbol, geneId}
+     */
+    const rsIdMatch = userInputVariant.match(RSID_RE)
+    const responseJson = await requestJson(
+      rsIdMatch
+        ? ensemblVepUrl(genomeVersion, "id", rsIdMatch[1])
+        : ensemblVepUrl(genomeVersion, "hgvs", userInputVariant.trim()),
+      ENSEMBL_TIMEOUT_MS)
+    console.log("Ensembl API response:", responseJson)
+
+    if (!responseJson.ok || responseJson.error) {
+      let errorText = `${responseJson.error}`
+      const refAlleleErrorMatch = errorText.match(
+        new RegExp("[(]([ACGTRYSWKMBDHVN]+)[)] does not match reference allele given by HGVS notation"))
+      if (refAlleleErrorMatch) {
+        errorText = `${userInputVariant} has an unexpected reference allele. `
+          + `The hg${genomeVersion == "37" ? "19" : "38"} reference allele should be ${refAlleleErrorMatch[1]}`
+      }
+      const error = ensemblRejection(errorText)
+      // Only a wrong REF is a verdict on the variant itself. Anything else Ensembl rejects (a
+      // transcript missing from its GRCh37 set, notation it can't parse) may still resolve elsewhere.
+      error.refAlleleMismatch = Boolean(refAlleleErrorMatch)
+      throw error
+    }
+    const annotation = responseJson[0]
+    if (!annotation || !annotation.vcf_string) {
+      throw ensemblRejection(`Unexpected response from the Ensembl API: ${JSON.stringify(responseJson)}`)
+    }
+
+    // A dbSNP id with several collocated variants comes back with one vcf_string per variant.
+    // Join their ALT alleles into one multi-allelic record, the way this page always has.
+    const vcfStrings = Array.isArray(annotation.vcf_string) ? annotation.vcf_string : [annotation.vcf_string]
+    const [chrom, pos, ref, firstAlt] = String(vcfStrings[0]).split("-")
+    const alts = [firstAlt].concat(vcfStrings.slice(1).map((vcfString) => String(vcfString).split("-")[3]))
+    const variant = `${chrom}-${pos}-${ref}-${alts.join(",")}`.toUpperCase()
+    if (!RESOLVED_VARIANT_RE.test(variant)) {
+      // Deliberately not an ensemblRejection: Ensembl did resolve the variant, and what failed is
+      // its answer not being one this page can lift over (an alt contig, a symbolic ALT), so the
+      // hg19 path must stay free to try VariantValidator.
+      throw Error(`the Ensembl API converted ${userInputVariant} to ${variant}, which is not a variant this page can lift over`)
+    }
+    return summarizeEnsemblAnnotation(annotation, variant)
+  }
+
+  const genomicHgvs = (chrom, pos, ref, alt) => {
+    /* Build the genomic (g.) HGVS string the Ensembl VEP endpoint needs for parsed coordinates.
+     *
+     * Args:
+     *  chrom (string), pos (int), ref (string), alt (string): the parsed coordinates
+     */
+    if (ref.length == 1 && alt.length == 1) {
+      return `${chrom}:g.${pos}${ref}>${alt}`  // SNV
+    }
+    if (ref.length == 1 && alt.startsWith(ref)) {
+      // Insertion: the ALT repeats the REF base and then adds to it, which HGVS writes as an ins
+      // between that base and the next.
+      return `${chrom}:g.${pos}_${pos + 1}ins${alt.slice(1)}`
+    }
+    if (alt.length == 1 && ref.startsWith(alt)) {
+      return `${chrom}:g.${pos + 1}_${pos + ref.length - 1}del${ref.slice(1)}`  // deletion
+    }
+    // Anything else -- an MNP, or an indel whose first base changes as well -- is a delins over the
+    // whole REF span.
+    return ref.length == 1
+      ? `${chrom}:g.${pos}delins${alt}`
+      : `${chrom}:g.${pos}_${pos + ref.length - 1}delins${alt}`
+  }
+
+  const annotateVariantWithEnsembl = async (chrom, pos, ref, alt, genomeVersion) => {
+    /* Look up the consequence of coordinates this page already parsed, using the Ensembl VEP API.
+     * The answer is discarded unless the variant Ensembl reports back is the one it was asked about.
+     *
+     * Args:
+     *  chrom (string), pos (int), ref (string), alt (string): the parsed coordinates
+     *  genomeVersion (string): "37" or "38"
+     *
+     * Return:
+     *  object: {variant, consequence, geneSymbol, geneId}, or null when Ensembl has no usable answer,
+     *      including when the call itself fails
+     */
+    const expectedVariant = `${chrom}-${pos}-${ref}-${alt}`
+    let responseJson
+    try {
+      responseJson = await requestJson(ensemblVepUrl(genomeVersion, "hgvs", genomicHgvs(chrom, pos, ref, alt)), ENSEMBL_TIMEOUT_MS)
+    } catch (e) {
+      console.warn("Ensembl API call failed:", e)
+      return null
+    }
+    if (!responseJson.ok || responseJson.error || !responseJson[0]) {
+      console.warn("Ensembl API returned no annotation for", expectedVariant, responseJson)
+      return null
+    }
+    if (String(responseJson[0].vcf_string).toUpperCase() != expectedVariant.toUpperCase()) {
+      console.warn("Ensembl annotated a different variant than the one asked about:", expectedVariant, responseJson[0].vcf_string)
+      return null
+    }
+    return summarizeEnsemblAnnotation(responseJson[0], expectedVariant)
+  }
+
+  const annotateParsedVariant = async (chrom, pos, ref, alt, genomeVersion, userInputVariant) => {
+    /* Look up the consequence of coordinates already in "{chrom}-{pos}-{ref}-{alt}" form.
+     *
+     * Ensembl is asked at the same time as GeneBe, so its answer is already in hand if GeneBe has
+     * none. GeneBe's answer is preferred whenever it has one, as on SpliceAI-lookup. A REF allele
+     * either one disputes is left to the liftover server to report, so such an answer only means
+     * there is no consequence to show.
+     *
+     * Args:
+     *  chrom (string), pos (int), ref (string), alt (string): the coordinates to annotate
+     *  genomeVersion (string): "37" or "38"
+     *  userInputVariant (string): what the user typed
+     *
+     * Return:
+     *  Promise: resolves to {consequence, geneSymbol, geneId}, or to null when no source could
+     *      annotate the variant. Never rejects.
+     */
+    const parsedVariant = `${chrom}-${pos}-${ref}-${alt}`
+    // Unlike on SpliceAI-lookup, Ensembl is the fallback on hg19 too. SpliceAI-lookup skips it there
+    // because GRCh37 VEP's transcript ids don't match its score tables, which this page doesn't
+    // have. And GeneBe's hg19 answers are often unusable: they come back lifted to hg38, where an
+    // indel in a repeat is left-aligned into a rotation alleleChange can't match (hg19 CFTR F508del,
+    // 7-117199645-TCTT-T, comes back as 7-117559590-ATCT-A).
+    const ensemblPromise = annotateVariantWithEnsembl(chrom, pos, ref, alt, genomeVersion)
+    const geneBeAnswer = await annotateVariantWithGeneBe(parsedVariant, genomeVersion, userInputVariant, parsedVariant)
+    if (geneBeAnswer && !geneBeAnswer.refMismatchWarning && geneBeAnswer.consequence) {
+      return geneBeAnswer
+    }
+    return await ensemblPromise
+  }
+
+  const resolveVariantWithVariantValidator = async (userInputVariant, genomeVersion) => {
+    /* Fallback coordinate resolver for HGVS notation that GeneBe and Ensembl could not convert.
+     * Converts it to "{chrom}-{pos}-{ref}-{alt}" via the public VariantValidator REST API (no API
+     * key required). Returns that string on success, or null if VariantValidator is unreachable or
+     * can't resolve the variant. Does NOT provide a consequence.
+     *
+     * Args:
+     *  userInputVariant (string): HGVS notation, as the user typed it
+     *  genomeVersion (string): "37" or "38"
+     */
+    const build = genomeVersion == "37" ? "GRCh37" : "GRCh38"
+    const buildKey = genomeVersion == "37" ? "grch37" : "grch38"
+    try {
+      const response = await requestJson(
+        // The 'select' (MANE/RefSeq-select) transcript set rather than 'all': VariantValidator has
+        // deprecated select_transcripts='all'/'raw' for genomic (g.) HGVS input, which returns a 404
+        // instead of coordinates. 'select' resolves both transcript- and genomic-HGVS.
+        `https://rest.variantvalidator.org/VariantValidator/variantvalidator/${build}/${encodeURIComponent(userInputVariant.trim())}/select`,
+        VARIANTVALIDATOR_TIMEOUT_MS)
+      // The response is keyed by validated variant description(s), alongside "flag" and "metadata"
+      // keys; the genomic position lives under primary_assembly_loci[buildKey].vcf.
+      for (const key of Object.keys(response)) {
+        if (key === "flag" || key === "metadata" || key === "ok") continue
+        const loci = response[key] && response[key].primary_assembly_loci
+        const vcf = loci && loci[buildKey] && loci[buildKey].vcf
+        if (vcf && vcf.chr && vcf.pos && vcf.ref && vcf.alt) {
+          const variant = `${String(vcf.chr).replace(/^chr/i, "")}-${vcf.pos}-${vcf.ref}-${vcf.alt}`.toUpperCase()
+          if (RESOLVED_VARIANT_RE.test(variant)) {
+            return variant
+          }
+        }
+      }
+      console.warn("VariantValidator returned no genomic coordinates for", userInputVariant, response)
+      return null
+    } catch (e) {
+      console.warn("VariantValidator fallback failed:", e)
+      return null
+    }
+  }
+
+  const resolveHgvsWithVariantValidator = async (userInputVariant, genomeVersion, onProgress, fallbackReason) => {
+    /* Last-resort HGVS conversion, for when the APIs that normally convert it could not.
+     *
+     * Return:
+     *  object: a normalizeVariant result, or null when VariantValidator couldn't resolve it either
+     */
+    onProgress("Converting HGVS notation to chrom-pos-ref-alt using VariantValidator...")
+    const vvVariant = await resolveVariantWithVariantValidator(userInputVariant, genomeVersion)
+    if (!vvVariant) {
+      return null
+    }
+    console.warn(`Using VariantValidator as the fallback resolver: ${vvVariant}`)
+    const [chrom, pos, ref, alt] = vvVariant.split("-")
+    return {
+      "variant": vvVariant,
+      "warnings": [`${fallbackReason}: ${vvVariant}`],
+      "consequencePromise": annotateParsedVariant(chrom, parseInt(pos), ref, alt, genomeVersion, userInputVariant),
+    }
+  }
+
+  // RefSeq accession of each chromosome in each build, chr1-22 then X and Y. The mitochondrial
+  // accession, NC_012920.1, is the same in both, so it is left out.
+  const CHROMOSOME_ACCESSIONS_BY_GENOME_VERSION = {
+    "37": ["NC_000001.10", "NC_000002.11", "NC_000003.11", "NC_000004.11", "NC_000005.9", "NC_000006.11",
+           "NC_000007.13", "NC_000008.10", "NC_000009.11", "NC_000010.10", "NC_000011.9", "NC_000012.11",
+           "NC_000013.10", "NC_000014.8", "NC_000015.9", "NC_000016.9", "NC_000017.10", "NC_000018.9",
+           "NC_000019.9", "NC_000020.10", "NC_000021.8", "NC_000022.10", "NC_000023.10", "NC_000024.9"],
+    "38": ["NC_000001.11", "NC_000002.12", "NC_000003.12", "NC_000004.12", "NC_000005.10", "NC_000006.12",
+           "NC_000007.14", "NC_000008.11", "NC_000009.12", "NC_000010.11", "NC_000011.10", "NC_000012.12",
+           "NC_000013.11", "NC_000014.9", "NC_000015.10", "NC_000016.10", "NC_000017.11", "NC_000018.10",
+           "NC_000019.10", "NC_000020.11", "NC_000021.9", "NC_000022.11", "NC_000023.11", "NC_000024.10"],
+  }
+
+  const checkChromosomeAccessionMatchesGenomeVersion = (userInputVariant, genomeVersion) => {
+    /* Throw when genomic HGVS names its chromosome by the other build's RefSeq accession.
+     *
+     * GeneBe doesn't check the accession's version: asked about NC_000016.9:g.2367764T>A (GRCh37)
+     * on hg38, it answers with hg38 position 2367764, a different base than the GRCh37 one, with no
+     * warning (checked 2026-09-30). The REF often matches there by chance, so nothing downstream
+     * notices, and a variant the user never entered gets lifted over.
+     *
+     * Args:
+     *  userInputVariant (string): what the user typed
+     *  genomeVersion (string): "37" or "38", the build the selected liftover starts from
+     */
+    const otherGenomeVersion = genomeVersion == "37" ? "38" : "37"
+    for (const accession of (userInputVariant.toUpperCase().match(/NC_0000\d\d\.\d+/g) || [])) {
+      if (CHROMOSOME_ACCESSIONS_BY_GENOME_VERSION[otherGenomeVersion].includes(accession)) {
+        const otherBuildName = otherGenomeVersion == "37" ? "GRCh37 (hg19)" : "GRCh38 (hg38)"
+        const selectedBuildName = genomeVersion == "37" ? "hg19" : "hg38"
+        // Swapping in the other build's accession isn't suggested: the coordinates differ between
+        // builds too, so that would name a different variant.
+        throw Error(`${accession} is a ${otherBuildName} chromosome accession, but the selected liftover starts `
+          + `from ${selectedBuildName}. Select a liftover from ${otherGenomeVersion == "37" ? "hg19" : "hg38"} instead.`)
+      }
+    }
+  }
+
+  const normalizeVariant = async (userInputVariant, genomeVersion, onProgress) => {
+    /* Convert the user's variant to "{chrom}-{pos}-{ref}-{alt}" and start looking up its consequence.
+     *
+     * The coordinates come back resolved, but the consequence comes back still in flight, so the
+     * caller can send the liftover request the moment it has coordinates rather than waiting on an
+     * annotation the liftover doesn't need.
+     *
+     * Args:
+     *  userInputVariant (string): user input text: chrom-pos-ref-alt, HGVS notation or a dbSNP id
+     *  genomeVersion (string): "37" or "38"
+     *  onProgress (function): called with a message naming the resolver about to be waited on
+     *
+     * Return:
+     *  object: {variant, warnings, consequencePromise}, where consequencePromise resolves to
+     *      {consequence, geneSymbol, geneId} or to null
+     */
+    const matchedRegExp = userInputVariant.match(VARIANT_RE)
+    if (matchedRegExp) {
+      const chrom = matchedRegExp[2].toUpperCase()
+      const pos = parseInt(matchedRegExp[3].replace(/,/g, ""))
+      const ref = matchedRegExp[4].toUpperCase()
+      const alt = matchedRegExp[5].toUpperCase()
+      return {
+        "variant": `${chrom}-${pos}-${ref}-${alt}`,
+        "warnings": [],
+        "consequencePromise": annotateParsedVariant(chrom, pos, ref, alt, genomeVersion, userInputVariant),
+      }
+    }
+
+    const isRsId = RSID_RE.test(userInputVariant)
+    // Everything below is HGVS notation or a dbSNP id, the only input that has to be resolved.
+    checkChromosomeAccessionMatchesGenomeVersion(userInputVariant, genomeVersion)
+    if (genomeVersion == "38") {
+      onProgress(`Converting ${isRsId ? "the dbSNP ID" : "HGVS notation"} to chrom-pos-ref-alt using the GeneBe and Ensembl APIs...`)
+      // resolveWithEnsembl throws to report why it failed, which is one contestant losing rather
+      // than the search failing. A rejection Ensembl made on the variant's merits is kept aside: if
+      // nothing else can resolve the input either, it is the most specific thing anyone said.
+      let ensemblRejectionError = null
+      const geneBePromise = resolveVariantWithGeneBe(userInputVariant)
+      const ensemblPromise = resolveWithEnsembl(userInputVariant, genomeVersion).catch((e) => {
+        console.warn("Ensembl API couldn't convert the input:", e)
+        if (e.ensemblRejected) {
+          ensemblRejectionError = e
+        }
+        return null
+      })
+      // HGVS names one allele, so whichever API answers first is as good as the other. A dbSNP id
+      // can name several, and only Ensembl returns them all (GeneBe picks one), so for those
+      // Ensembl's answer is waited for, with GeneBe's, already in flight, as the fallback. Racing
+      // them would make which alleles get lifted over depend on network timing.
+      const resolved = isRsId
+        ? (await ensemblPromise) || (await geneBePromise)
+        : await firstUsableAnswer([geneBePromise, ensemblPromise])
+      if (resolved) {
+        console.log("hg38 input resolved to:", resolved)
+        return {
+          "variant": resolved.variant,
+          "warnings": resolved.warnings || [],
+          "consequencePromise": Promise.resolve(resolved),
+        }
+      }
+      if (!isRsId) {
+        const fallback = await resolveHgvsWithVariantValidator(userInputVariant, genomeVersion, onProgress,
+          "Neither the GeneBe nor the Ensembl API could convert this HGVS notation, so it was converted to genomic coordinates via VariantValidator")
+        if (fallback) {
+          return fallback
+        }
+      }
+      if (ensemblRejectionError) {
+        throw ensemblRejectionError
+      }
+      throw Error(`Neither the GeneBe nor the Ensembl API could convert ${userInputVariant} to genomic `
+        + `coordinates. ${GENOMIC_COORDINATE_HINT}`)
+    }
+
+    // hg19: Ensembl resolves the coordinates on its own, and its error text is what the user sees
+    // when it can't, so this one is awaited rather than raced.
+    onProgress(`Converting ${isRsId ? "the dbSNP ID" : "HGVS notation"} to chrom-pos-ref-alt using the Ensembl API...`)
+    try {
+      const resolved = await resolveWithEnsembl(userInputVariant, genomeVersion)
+      return {
+        "variant": resolved.variant,
+        "warnings": [],
+        "consequencePromise": Promise.resolve(resolved),
+      }
+    } catch (e) {
+      console.error(e)
+      // A wrong REF gets the same verdict from any resolver, so trying another would only spend a
+      // round trip, and Ensembl's message names the right base. VariantValidator doesn't take dbSNP
+      // ids at all.
+      if (e.refAlleleMismatch || isRsId) {
+        throw e
+      }
+      const errorMessage = e.message || e.toString()
+      const fallback = await resolveHgvsWithVariantValidator(userInputVariant, genomeVersion, onProgress,
+        e.ensemblRejected
+          ? "The Ensembl API could not convert this HGVS notation, so it was converted to genomic coordinates via VariantValidator"
+          : errorMessage.includes("timed out")
+            ? "Ensembl API timed out, so the HGVS notation was converted to genomic coordinates via VariantValidator"
+            : "Ensembl API unavailable, so the HGVS notation was converted to genomic coordinates via VariantValidator")
+      if (fallback) {
+        return fallback
+      }
+      // Ensembl did answer, and what it said about the input is more specific than anything below
+      if (e.ensemblRejected) {
+        throw e
+      }
+      if (errorMessage.includes("timed out")) {
+        throw Error(`Ensembl API timed out. ${GENOMIC_COORDINATE_HINT}`)
+      }
+      throw Error(`Ensembl API call failed: ${errorMessage}. ${GENOMIC_COORDINATE_HINT}`)
+    }
   }
 
   const getUCSCBrowserUrl = (genomeVersion, chrom, start, end) => {
@@ -491,8 +1233,8 @@
         "<td><a href='" + input_url + "' target='_blank'>" + input_string + "</a></td>" +
         "<td></td>" +
             (response.mostSevereConsequence && response.geneSymbol && response.geneId?
-        "<td><b>" + response.mostSevereConsequence + "</b></td>" +
-        "<td> in gene <b>" + response.geneSymbol + "</b> &nbsp; (" + response.geneId + ")</td>" :
+        "<td><b>" + $("<span>").text(response.mostSevereConsequence).html() + "</b></td>" +
+        "<td> in gene <b>" + $("<span>").text(response.geneSymbol).html() + "</b> &nbsp; (" + $("<span>").text(response.geneId).html() + ")</td>" :
         "<td>" + input_interval_size + "</td><td></td>") +
       "</tr>" +
       "<tr>" +
@@ -505,7 +1247,14 @@
       /* "</tr><tr><td colspan='2'></td><td colspan='4' style='color:#333333'><i>Using the " + response.liftover_tool + "</i></b></td>" + */
       "</tr>" +
       "<tr><td colspan='6' style='padding-top: 20px; padding-bottom: 20px; text-align: right;'>" +
-          "Lifted over by: <i>" + response.liftover_tool + "</i></td></tr>" +
+          "Lifted over by: <i>" + response.liftover_tool + "</i>" +
+          // Credited only when the consequence is actually shown in the table above
+          (response.mostSevereConsequence && response.geneSymbol && response.geneId && response.consequenceSource ?
+            ", Variant consequence by: <i>" + (response.consequenceSourceUrl
+              ? $("<a>").attr({"href": response.consequenceSourceUrl, "target": "_blank"}).text(response.consequenceSource).prop("outerHTML")
+              : $("<span>").text(response.consequenceSource).html()) + "</i>" :
+            "") +
+          "</td></tr>" +
 
     "</table>"
   }
@@ -560,8 +1309,20 @@
       // With REF and ALT the same there is no variant to lift over, only a position.
       const refAltMatch = input.match(VARIANT_RE)
       if (refAltMatch && refAltMatch[4].toUpperCase() === refAltMatch[5].toUpperCase()) {
-        rejectInput(`REF and ALT are the same. To lift over the position itself, search for `
-          + `"chr${refAltMatch[2].toUpperCase()}-${refAltMatch[3].replace(/,/g, "")}" instead.`)
+        const positionInput = `chr${refAltMatch[2].toUpperCase()}:${refAltMatch[3].replace(/,/g, "")}`
+        rejectInput("REF and ALT alleles are the same. Search for ")
+        // The page only reads the URL on load, so clicking the link runs the search directly. The
+        // href still lets the link be opened in a new tab.
+        $("#error-box").append(
+          $("<a>")
+            .attr("href", "#" + $.param({input: positionInput, hg: $("input[name='hg']:checked").val().trim()}))
+            .text(positionInput)
+            .click((e) => {
+              e.preventDefault()
+              $("#search-box").val(positionInput)
+              $("#submit-button").click()
+            }),
+          " if you want to lift over the position.")
         return
       }
 
@@ -581,6 +1342,7 @@
       }
 
       $("#response-box").hide()
+      $("#warning-box").hide()
 
       // Collapse the [show older updates] panel so the results of the new search
       // aren't pushed down by a long list of old release notes
@@ -589,112 +1351,71 @@
 
       $("#submit-button").addClass(["loading", "disabled"])
 
+      // Says which external API the search is waiting on, since a slow resolver can take a while.
+      const showProgress = (message) => {
+        $("#status-box").text(message).show()
+      }
+
+      // Identifies this search, so a consequence that arrives after its result was shown is only
+      // filled in while no later search has replaced that result
+      const searchId = ++latestSearchId
+
       let promise;
       if (VARIANT_RE.test(input) || RSID_RE.test(input) || (!INTERVAL_RE.test(input) && !POSITION_RE.test(input))) {
-        let ensemblApiUrlPrefix = ""
-        if (inputGenomeVersion == "37") {
-          ensemblApiUrlPrefix = "grch37."
-        }
-
-        let request;
-        if (inputGenomeVersion != "t2t") {
-          if (RSID_RE.test(input)) {
-            const m = input.match(RSID_RE)
-            request = $.getJSON(
-              "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/id/" + m[1] + "?content-type=application/json&vcf_string=1"
-            )
-          } else {
-            const variantHgvs = parseVariantToHGVS(input, inputGenomeVersion)
-            request = $.getJSON(
-                "https://" + ensemblApiUrlPrefix + "rest.ensembl.org/vep/human/hgvs/" + variantHgvs + "?content-type=application/json&vcf_string=1"
-            )
-          }
-        } else {
-
-          request = $.Deferred()
-          const m = input.match(VARIANT_RE)
-          if (m) {
-            let chrom = m[2].toUpperCase()
-            const pos = parseInt(m[3].replace(/,/g, ""))
-            const ref = m[4]
-            const alt = m[5]
-
-            request.resolve([{
-              "vcf_string": `${chrom}-${pos}-${ref}-${alt}`,
-            }]);
-          } else {
-            request.reject({ "responseText": `Could not parse variant: ${input}` })
-          }
-
-        }
-
-        promise = request.catch((error) => {
-          let errorText = error.responseText
-          try {
-            errorText = JSON.parse(errorText).error
-          } catch(e) {
-            console.warn(e)
-          }
-
-          const refAlleleError = errorText.match(new RegExp("[(]([ACGTRYSWKMBDHVN]+)[)] does not match reference allele given by HGVS notation"))
-          if (refAlleleError) {
-            errorText = input + " has unexpected reference allele. The hg" + inputGenomeVersion + " reference allele should be: " + refAlleleError[1]
-          }
-
-          //errorText = "Ensembl API error: " + errorText
-          console.warn(errorText)
-          throw { responseText: errorText }
-        }).then((response) => {
-          console.log("Esnembl API response", response)
-          if (!response || !response[0]) {
-            throw { responseText: "Unable to parse Ensembl API repsonse: " + response }
-          }
-
-          //check if response[0].vcf_string is an array or a string
-          let vcfString;
-          if (Array.isArray(response[0].vcf_string)) {
-            // this can happen for rsIDs that represent multiple collocated variants
-            vcfString = (response[0].vcf_string[0] || "---").split("-")
-            //append alt alleles from other collocated variants
-            for (let i = 1; i < response[0].vcf_string.length; i++) {
-              vcfString[3] += "," + response[0].vcf_string[i].split("-")[3]
+        promise = (async () => {
+          let resolved
+          if (inputGenomeVersion == "t2t") {
+            // No resolver covers T2T, so only chrom-pos-ref-alt can be lifted over from it
+            const m = input.match(VARIANT_RE)
+            if (!m) {
+              throw Error(`Could not parse variant: ${input}. From T2T, enter the variant as chrom-pos-ref-alt.`)
+            }
+            resolved = {
+              "variant": `${m[2].toUpperCase()}-${m[3].replace(/,/g, "")}-${m[4].toUpperCase()}-${m[5].toUpperCase()}`,
+              "warnings": [],
+              "consequencePromise": Promise.resolve(null),
             }
           } else {
-            vcfString = (response[0].vcf_string || "---").split("-")
+            resolved = await normalizeVariant(input, inputGenomeVersion, showProgress)
           }
-          const chrom = vcfString[0]
-          const pos = vcfString[1]
-          const ref = vcfString[2]
-          const alt = vcfString[3]
-          const mostSevereConsequence = (response[0].most_severe_consequence || "").replace(/_/g, " ")
-          const filteredTranscriptConsequences = response[0].transcript_consequences ? response[0].transcript_consequences.filter(t => t.consequence_terms && t.consequence_terms.includes(response[0].most_severe_consequence)) : []
+          console.log(`Variant string: ${resolved.variant}`)
+          const [chrom, pos, ref, alt] = resolved.variant.split("-")
 
-          let geneSymbol = "", geneId = ""
-          if (filteredTranscriptConsequences.length > 0) {
-            geneSymbol = filteredTranscriptConsequences[0].gene_symbol
-            geneId = filteredTranscriptConsequences[0].gene_id
-          }
-
-          console.log(`Variant string: ${chrom}-${pos}-${ref}-${alt}`)
-          console.log("Most-severe VEP consequence:", mostSevereConsequence)
-
-          // call SpliceAI-lookup API
-          return $.getJSON(
-            LIFTOVER_API_URL,
-            {
-              hg: hg,
-              //oneOrZeroBasedCoords: oneOrZeroBasedCoords,
-              format: 'variant',
-              chrom: chrom,
-              pos: pos,
-              ref: ref,
-              alt: alt,
-              mostSevereConsequence: mostSevereConsequence,
-              geneSymbol: geneSymbol,
-              geneId: geneId,
+          showProgress("Lifting over...")
+          // The consequence lookup is already in flight, so it and the liftover run side by side
+          const response = await $.getJSON(LIFTOVER_API_URL, {hg: hg, format: "variant", chrom: chrom, pos: pos, ref: ref, alt: alt})
+          response.warnings = resolved.warnings.concat((response.warnings || []).map((w) => w.message))
+          const addConsequenceToResponse = (consequence) => {
+            console.log("Most severe consequence:", consequence)
+            if (consequence && consequence.consequence) {
+              response.mostSevereConsequence = consequence.consequence.replace(/_/g, " ")
+              response.geneSymbol = consequence.geneSymbol
+              response.geneId = consequence.geneId
+              response.consequenceSource = consequence.consequenceSource
+              response.consequenceSourceUrl = consequence.consequenceSourceUrl
+              return true
             }
-          )
-        })
+            return false
+          }
+          // The consequence is only shown alongside the result, so the result waits for it only
+          // briefly: the Ensembl fallback can take up to ENSEMBL_TIMEOUT_MS. One that arrives later
+          // is filled in, as long as this search's result is still the one on the page.
+          const timedOut = Symbol("timed out")
+          const consequence = await Promise.race([
+            resolved.consequencePromise,
+            new Promise((resolve) => setTimeout(() => resolve(timedOut), CONSEQUENCE_WAIT_AFTER_LIFTOVER_MS)),
+          ])
+          if (consequence === timedOut) {
+            resolved.consequencePromise.then((lateConsequence) => {
+              if (searchId === latestSearchId && !response.error && addConsequenceToResponse(lateConsequence)) {
+                $("#response-box").html(generateResultsTable(response))
+              }
+            })
+          } else {
+            addConsequenceToResponse(consequence)
+          }
+          return response
+        })()
       } else if(INTERVAL_RE.test(input)) {
         const interval = parseInterval(input)
         promise = $.getJSON(
@@ -727,7 +1448,7 @@
 	    return
       }
 
-      promise.then((response) => {
+      Promise.resolve(promise).then((response) => {
         console.log("Liftover response:", response)
 
 
@@ -736,6 +1457,14 @@
         }
 
         $("#error-box").hide()
+        // Shown above the results rather than instead of them: the liftover still went ahead, but
+        // something about the input needs a second look, eg. a REF allele the reference genome
+        // doesn't have. .text() because the messages quote the input.
+        $("#warning-box").empty()
+        for (const warning of response.warnings || []) {
+          $("#warning-box").append($("<div>").text(`Warning: ${warning}`))
+        }
+        $("#warning-box").toggle((response.warnings || []).length > 0)
         $("#response-box").html(generateResultsTable(response))
         $("#response-box").show()
 
@@ -744,11 +1473,15 @@
 
       }).catch((error) => {
         $("#response-box").hide()
+        $("#warning-box").hide()
+        // A jQuery request failure carries the server's text in responseText, while the resolvers
+        // throw ordinary Errors
         let errorText = error.responseText
         try {
           errorText = JSON.parse(errorText).error
         } catch(e) {
         }
+        errorText = errorText || error.message
 
         if (!errorText) {
           errorText = "ERROR: An unknown error occurred."
@@ -757,7 +1490,8 @@
         }
         $("#error-box").text(errorText)
         $("#error-box").show()
-      }).always(() => {
+      }).finally(() => {
+        $("#status-box").hide()
         $("#submit-button").removeClass(["loading", "disabled"]);
         $('.question').popup()
       })
