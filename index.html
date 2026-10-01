@@ -573,7 +573,7 @@
       }
       refMismatchWarning = `${userInputVariant} has an unexpected reference allele: the ${geneBeGenome} `
         + `reference genome has ${correctRef[1].toUpperCase()} there, so ${returnedVariant} was lifted over `
-        + `instead. Check the variant and the selected genome build.`
+        + `instead.`
     }
 
     // The warning field covers hg38 only. An hg19 query is answered by lifting to GRCh38, where the
@@ -734,14 +734,12 @@
     const transcriptRefAllele = findHgvsCRefMismatch(userInputVariant, result.hgvsCByTranscriptId)
     if (transcriptRefAllele) {
       result.warnings.push(`${userInputVariant.trim()} has an unexpected reference allele: the transcript `
-        + `has ${transcriptRefAllele} at that position, so ${result.variant} was lifted over instead. Check the `
-        + `variant and the selected genome build.`)
+        + `has ${transcriptRefAllele} at that position, so ${result.variant} was lifted over instead.`)
     }
     const genomicRefAllele = findHgvsGRefMismatch(userInputVariant, result.variant)
     if (genomicRefAllele) {
       result.warnings.push(`${userInputVariant.trim()} has an unexpected reference allele: the hg38 `
-        + `reference genome has ${genomicRefAllele} there, so ${result.variant} was lifted over instead. Check `
-        + `the variant and the selected genome build.`)
+        + `reference genome has ${genomicRefAllele} there, so ${result.variant} was lifted over instead.`)
     }
     // A dbSNP id names a position, not an allele, and GeneBe answers a multi-allelic one with a
     // single ALT of its choosing (rs1799966 comes back as 17-43071077-T-A, though GeneBe tags
