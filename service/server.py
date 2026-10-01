@@ -747,9 +747,8 @@ def run_liftover():
             warnings.append({
                 "code": "REF_MISMATCH",
                 "message": (
-                    f"REF {ref} does not match the {input_reference_genome} reference genome, which has "
-                    f"{reference_allele} at {chrom}:{pos}, so {reference_allele}>{corrected_alt} was lifted over "
-                    f"instead."),
+                    f"{input_reference_genome} has {reference_allele} rather than {ref} at {chrom}:{pos}, "
+                    f"so {reference_allele}>{corrected_alt} was lifted over instead."),
                 "input_ref": ref,
                 "reference_ref": reference_allele,
             })

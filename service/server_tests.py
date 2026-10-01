@@ -446,7 +446,7 @@ class LiftoverRefMismatchEndpointTests(unittest.TestCase):
         [warning] = result["warnings"]
         self.assertEqual(warning["code"], "REF_MISMATCH")
         self.assertEqual((warning["input_ref"], warning["reference_ref"]), ("T", "A"))
-        self.assertIn("REF T does not match the hg38 reference genome", warning["message"])
+        self.assertIn("hg38 has A rather than T at ", warning["message"])
 
     def test_wrong_anchor_base_of_an_insertion_is_corrected_in_ref_and_alt(self):
         result = self.liftover_variant(5, "T", "TGG")
